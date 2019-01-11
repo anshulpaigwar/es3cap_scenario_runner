@@ -39,7 +39,7 @@ class FollowLeadingVehicle(BasicScenario):
     timeout = 60            # Timeout of scenario in seconds
 
     # ego vehicle parameters
-    _ego_vehicle_model = 'vehicle.carlamotors.carlacola'
+    _ego_vehicle_model = 'vehicle.nissan.micra'
     _ego_vehicle_start_x = 107
     _ego_vehicle_start = carla.Transform(
         carla.Location(x=_ego_vehicle_start_x, y=133, z=39), carla.Rotation(yaw=0))

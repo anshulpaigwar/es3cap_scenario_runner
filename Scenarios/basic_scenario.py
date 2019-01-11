@@ -15,11 +15,11 @@ import random
 import sys
 
 import py_trees
-
+from carla import ColorConverter as cc
 from ScenarioManager.scenario_manager import Scenario
 
 
-def setup_vehicle(world, model, spawn_point, hero=False):
+def setup_vehicle(world, model, spawn_point, hero = False, zoe=False):
     """
     Function to setup the most relevant vehicle parameters,
     incl. spawn point and vehicle model.
@@ -28,10 +28,12 @@ def setup_vehicle(world, model, spawn_point, hero=False):
 
     # Get vehicle by model
     blueprint = random.choice(blueprint_library.filter(model))
-    if hero:
+    if zoe:
+        blueprint.set_attribute('role_name', 'zoe')
+    elif hero:
         blueprint.set_attribute('role_name', 'hero')
     else:
-        blueprint.set_attribute('role_name', 'scenario')
+        blueprint.set_attribute('role_name', 'test_vehicle')
 
     vehicle = world.try_spawn_actor(blueprint, spawn_point)
 
@@ -43,6 +45,41 @@ def setup_vehicle(world, model, spawn_point, hero=False):
     vehicle.set_autopilot(False)
 
     return vehicle
+
+
+
+def setup_sensor(world, sensor, transform, vehicle):
+    """
+    Function to setup the sensor suit.
+    """
+    blueprint_library = world.get_blueprint_library()
+
+    if sensor == "lidar":
+        # add sensors
+        lidar_bp = blueprint_library.find('sensor.lidar.ray_cast')
+        lidar_bp.set_attribute('rotation_frequency', '10')
+        lidar_bp.set_attribute('channels', '32')
+        lidar_bp.set_attribute('range', '5000')
+        lidar_bp.set_attribute('points_per_second', '422000')
+        lidar_bp.set_attribute('upper_fov', '2')
+        lidar_bp.set_attribute('lower_fov', '-24.8')
+        lidar = world.spawn_actor(lidar_bp, transform, attach_to=vehicle)
+        print('created %s' % lidar.type_id)
+        return lidar
+    if sensor == "camera.rgb":
+        camera_bp = blueprint_library.find('sensor.camera.rgb')
+        camera_bp.set_attribute('image_size_x', '720')
+        camera_bp.set_attribute('image_size_y', '480')
+        camera_bp.set_attribute('fov', '110')
+        camera_rgb = world.spawn_actor(camera_bp, transform, attach_to=vehicle)
+        return camera_rgb
+    else:
+        sys.exit(
+            "Error: Unable to spawn sensor {}".format(sensor))
+
+
+
+
 
 
 class BasicScenario(object):
@@ -59,6 +96,8 @@ class BasicScenario(object):
 
     ego_vehicle = None
     other_vehicles = []
+    camera_rgb = None
+    lidar = None
 
     def __init__(self, name, town, world, debug_mode=False):
         """
@@ -109,7 +148,7 @@ class BasicScenario(object):
         Cleanup.
         - Removal of the vehicles
         """
-        actors = [self.ego_vehicle] + self.other_vehicles
+        actors = [self.ego_vehicle] + self.other_vehicles + [self.lidar] +[self.camera_rgb]
         for actor in actors:
             if actor is not None:
                 actor.destroy()

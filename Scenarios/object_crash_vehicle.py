@@ -33,7 +33,7 @@ class StationaryObjectCrossing(BasicScenario):
     timeout = 60
 
     # ego vehicle parameters
-    _ego_vehicle_model = 'vehicle.carlamotors.carlacola'
+    _ego_vehicle_model = 'vehicle.nissan.micra'
     _ego_vehicle_start_x = 110
     _ego_vehicle_start = carla.Transform(
         carla.Location(x=_ego_vehicle_start_x, y=129, z=1),
@@ -112,7 +112,7 @@ class DynamicObjectCrossing(BasicScenario):
     timeout = 60
 
     # ego vehicle parameters
-    _ego_vehicle_model = 'vehicle.carlamotors.carlacola'
+    _ego_vehicle_model = 'vehicle.nissan.micra'
     _ego_vehicle_start_x = 90
     _ego_vehicle_start = carla.Transform(
         carla.Location(x=_ego_vehicle_start_x, y=129, z=1),

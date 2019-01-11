@@ -23,9 +23,12 @@ from Scenarios.follow_leading_vehicle import *
 from Scenarios.opposite_vehicle_taking_priority import *
 from Scenarios.object_crash_vehicle import *
 from Scenarios.no_signal_junction_crossing import NoSignalJunctionCrossing
+from Scenarios.junction_crossing_risk_estimation import JunctionCrossingRisk
 from Scenarios.object_crash_intersection import *
 from Scenarios.control_loss import *
 from ScenarioManager.scenario_manager import ScenarioManager
+
+# from risk_grid_validation import *
 
 
 # Version of scenario_runner
@@ -42,7 +45,8 @@ SCENARIOS = {
     "NoSignalJunctionCrossing",
     "VehicleTurningRight",
     "VehicleTurningLeft",
-    "ControlLoss"
+    "ControlLoss",
+    "JunctionCrossingRisk"
 }
 
 
@@ -120,6 +124,8 @@ def main(args):
 
 if __name__ == '__main__':
 
+# def run():
+
     DESCRIPTION = (
         "CARLA Scenario Runner: Setup, Run and Evaluate scenarios using CARLA\n"
         "Current version: " + str(VERSION))
@@ -146,6 +152,8 @@ if __name__ == '__main__':
     PARSER.add_argument(
         '-v', '--version', action='version', version='%(prog)s ' + str(VERSION))
     ARGUMENTS = PARSER.parse_args()
+
+    ARGUMENTS.scenario = "JunctionCrossingRisk"
 
     if ARGUMENTS.list:
         print("Currently the following scenarios are supported:")

@@ -406,6 +406,95 @@ class KeepVelocity(AtomicBehavior):
         super(KeepVelocity, self).terminate(new_status)
 
 
+
+
+
+class KeepVelocityPID(AtomicBehavior):
+
+    """
+    This class contains an atomic behavior to keep the provided velocity.
+    The controlled traffic participant will accelerate as fast as possible
+    until reaching a given _target_velocity_, which is then maintained for
+    as long as this behavior is active.
+
+    Note: In parallel to this behavior a termination behavior has to be used
+          to keep the velocity either for a certain duration, or for a certain
+          distance, etc.
+    """
+
+    def __init__(self, vehicle, target_velocity, name="KeepVelocity"):
+        """
+        Setup parameters including acceleration value (via throttle_value)
+        and target velocity
+        """
+        super(KeepVelocityPID, self).__init__(name)
+        self.logger.debug("%s.__init__()" % (self.__class__.__name__))
+        self._control = carla.VehicleControl()
+        self._vehicle = vehicle
+        self._target_velocity = target_velocity
+        self._last_error = 0
+        self._i_error = 0
+        self._dt = 0.1
+        self.k_p = 0.5#0.4
+        self.k_d = 0.2#0.01
+        self.k_i = 0.01
+
+        self._control.steering = 0
+
+    def update(self):
+        """
+        Set throttle to throttle_value, as long as velocity is < target_velocity
+        """
+        new_status = py_trees.common.Status.RUNNING
+
+        current_vel = CarlaDataProvider.get_velocity(self._vehicle)
+        current_error = self._target_velocity - current_vel
+        d_error = current_error - self._last_error
+        self._i_error = self._i_error + current_error
+
+        controller_output = self.k_p * current_error + self.k_d * d_error/self._dt +  self.k_i * self._i_error * self._dt
+
+        # print(controller_output)
+
+        if controller_output > 1:
+            controller_output = 1.0
+        if controller_output < 0:
+            controller_output = 0.0
+        self._control.throttle =  controller_output
+        self._last_error = current_error
+
+        self._vehicle.apply_control(self._control)
+        self.logger.debug("%s.update()[%s->%s]" %
+                          (self.__class__.__name__, self.status, new_status))
+        return new_status
+
+    def terminate(self, new_status):
+        """
+        On termination of this behavior, the throttle should be set back to 0.,
+        to avoid further acceleration.
+        """
+        self._control.throttle = 0.0
+        self._vehicle.apply_control(self._control)
+        super(KeepVelocityPID, self).terminate(new_status)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class DriveDistance(AtomicBehavior):
 
     """
@@ -665,3 +754,48 @@ class SteerVehicle(AtomicBehavior):
         self._vehicle.apply_control(self._control)
 
         return new_status
+
+
+
+
+
+class CollisionTrigger(AtomicBehavior):
+
+    """
+    Don't use this behaviour not it tested!!!
+    """
+
+    def __init__(self, collision_sensor):
+        """
+        Construction with sensor setup
+        """
+        super(CollisionTrigger, self).__init__(name)
+        self.logger.debug("%s.__init__()" % (self.__class__.__name__))
+        self._collision_sensor = collision_sensor
+
+    def update(self):
+        """
+        Check collision count
+        """
+        new_status = py_trees.common.Status.RUNNING
+
+        self._collision_sensor.listen(
+            lambda event: self._count_collisions(weakref.ref(self), event))
+
+        if self.actual_value > 0:
+            new_status = py_trees.common.Status.FAILURE
+
+        self.logger.debug("%s.update()[%s->%s]" %
+                          (self.__class__.__name__, self.status, new_status))
+        return new_status
+
+
+    @staticmethod
+    def _count_collisions(weak_self, event):
+        """
+        Callback to update collision count
+        """
+        self = weak_self()
+        if not self:
+            return
+        self.actual_value += 1

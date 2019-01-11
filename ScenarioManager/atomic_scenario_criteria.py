@@ -17,7 +17,8 @@ import weakref
 
 import py_trees
 import carla
-
+import rospy
+from std_msgs.msg import Bool
 from ScenarioManager.carla_data_provider import CarlaDataProvider
 from ScenarioManager.timer import GameTime
 
@@ -55,6 +56,7 @@ class Criterion(py_trees.behaviour.Behaviour):
         self.expected_value_acceptable = expected_value_acceptable
         self.actual_value = 0
         self.optional = optional
+        # rospy.init_node('pursuit_ego', anonymous=True)
 
     def setup(self, unused_timeout=15):
         self.logger.debug("%s.setup()" % (self.__class__.__name__))
@@ -256,6 +258,9 @@ class CollisionTest(Criterion):
             blueprint, carla.Transform(), attach_to=self.vehicle)
         self._collision_sensor.listen(
             lambda event: self._count_collisions(weakref.ref(self), event))
+        self._terminate_on_failure = True
+        self.pub = rospy.Publisher('collision_check', Bool, queue_size=10)
+        self.if_collision = Bool()
 
     def update(self):
         """
@@ -263,8 +268,11 @@ class CollisionTest(Criterion):
         """
         new_status = py_trees.common.Status.RUNNING
 
+        self.if_collision.data = False
+
         if self.actual_value > 0:
             self.test_status = "FAILURE"
+            self.if_collision.data = True
         else:
             self.test_status = "SUCCESS"
 
@@ -274,6 +282,7 @@ class CollisionTest(Criterion):
         self.logger.debug("%s.update()[%s->%s]" %
                           (self.__class__.__name__, self.status, new_status))
 
+        self.pub.publish(self.if_collision)
         return new_status
 
     def terminate(self, new_status):

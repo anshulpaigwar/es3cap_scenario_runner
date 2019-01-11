@@ -36,7 +36,7 @@ class OppositeVehicleRunningRedLight(BasicScenario):
     timeout = 180            # Timeout of scenario in seconds
 
     # ego vehicle parameters
-    _ego_vehicle_model = 'vehicle.carlamotors.carlacola'
+    _ego_vehicle_model = 'vehicle.nissan.micra'
     _ego_vehicle_start = carla.Transform(
         carla.Location(x=-2.8, y=-184, z=1), carla.Rotation(yaw=90))
     _ego_max_velocity_allowed = 20       # Maximum allowed velocity [m/s]
