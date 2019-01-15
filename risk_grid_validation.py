@@ -90,13 +90,15 @@ class vehicle(object):
 
 class grid(object):
 
-    def __init__(self, x_min, y_min, res,  target):
+    def __init__(self, x_min, y_min, res,  target, zoe):
         self.target = target
+        self.zoe = zoe
         self.grid_x_min = x_min
         self.grid_y_min = y_min
         self.res = res
         self.tf_listener = tf.TransformListener()
         self.grid_sub = rospy.Subscriber('/zoe/risk_grid', FloatOccupancyGrid, self.callback)
+        self.trace = []
 
 
 
@@ -124,13 +126,21 @@ class grid(object):
         # check that bounding box is not out of grid index
         if((xmin < 0) or (ymin < 0) or (xmax > risk_grid.info.height) or (ymax > risk_grid.info.width)):
             # print("target is out of grid")
+            self.info = None
             return
 
         risk_arr = (np.array(risk_grid.data)*255).astype('uint8')
         risk_arr = risk_arr.reshape(risk_grid.info.height, risk_grid.info.width, risk_grid.nb_channels)
 
 
-        risk_prob  = risk_arr[ymin:ymax, xmin:xmax, :3]
+        # risk_prob  = risk_arr[ymin:ymax, xmin:xmax, :3]
+        max_risk_1sec = risk_arr[ymin:ymax, xmin:xmax,0].max()
+        max_risk_2sec = risk_arr[ymin:ymax, xmin:xmax,1].max()
+        max_risk_3sec = risk_arr[ymin:ymax, xmin:xmax,2].max()
+        self.trace.append([risk_grid.header.stamp.to_sec(),
+                    self.zoe.vel, self.target.vel,
+                    max_risk_1sec, max_risk_2sec, max_risk_3sec,
+                    -self.grid_x_min, -self.grid_y_min, cx, cy, 0])
 
         # test_grid = risk_grid
         # test_arr = np.zeros_like(risk_arr)
@@ -138,6 +148,102 @@ class grid(object):
         # test_arr = test_arr.flatten().tolist()
         # test_grid.data = test_arr
         # pub.publish(test_grid)
+
+
+
+
+
+class Recorder(object):
+    def __init__(self,risk_grid):
+        self.grid = risk_grid
+        self.trace = []
+        self.grid_sub = rospy.Subscriber('collision_check', Bool, self.callback)
+
+    def callback(self,msg):
+
+        self.status = msg.data
+        if self.grid.info == None:
+            return
+        trace_seq = self.grid.info + [self.status]
+        # formatted_trace = [ '%.2f' % elem for elem in trace_seq ]
+        # print(formatted_trace)
+        # self.trace.append(formatted_trace)
+        self.trace.append(trace_seq)
+
+
+
+
+
+
+def listener():
+
+    rospy.init_node('risk_grid_valid', anonymous=True)
+    rate = rospy.Rate(10) # 10hz
+
+    params = scenario_params()
+    zoe = vehicle(agent_frame_id= "zoe/zoe_odom_origin")
+    target = vehicle(agent_frame_id= "test_vehicle")
+    risk_grid = grid(-28,-28,0.1,target, zoe)
+
+    trace_dir = "/home/anshul/enable-s3/traces/"
+
+    for i in range(10):
+        params.ego_vehicle_vel = 10
+        params.other_vehicle_vel = 10
+        # scenario = Recorder(risk_grid)
+        risk_grid.trace = []
+        trace_num = i
+        trace_path = trace_dir + "%06d.txt" % trace_num
+
+        # TODO create an object that will be called everytime I recive status value
+        collision_check = run_scenario(params)
+        # trace = np.around(np.array(scenario.trace),3)
+        if collision_check == True:
+            risk_grid.trace[-1][-1] = 1
+        np.savetxt(trace_path, risk_grid.trace,fmt='%.4f', delimiter=' ')
+
+
+
+
+
+if __name__ == '__main__':
+    listener()
+
+
+
+
+    # while not rospy.is_shutdown():
+    #     will_collide, time = compute_collision_risk(zoe, target)
+    #     # if will_collide:
+    #     #     print("cars will collide within {:0.2f} sec".format(time))
+    #     # elif time != -1:
+    #     #     print("cars will not collide, minimum distance within {:0.2f} sec".format(time))
+    #     rate.sleep()
+
+
+
+
+
+
+
+    # vehicle_marker_sub = message_filters.Subscriber('vehicles', MarkerArray)
+    # risk_grid_sub = message_filters.Subscriber('/zoe/risk_grid', FloatOccupancyGrid)
+    #
+    # ts = TimeSynchronizer([vehicle_marker_sub,risk_grid_sub],10)
+    # ts.registerCallback(callback)
+
+
+
+        # obj_risk_list = []
+        # for i in range(xmin,xmax):
+        #     for j in range(ymin, ymax):
+        #
+        #         # risk = risk_grid.data[i*num_col + j]
+        #         obj_risk_list.append(risk)
+
+
+        # print(self.target.l, self.target.w, self.target.h)
+        # print(center, yaw)
 
 
 
@@ -174,61 +280,3 @@ def compute_collision_risk(zoe , target):
     if minDist < collision_dist:
         will_collide = True
     return will_collide, minDist_time
-
-
-
-
-
-def listener():
-
-    rospy.init_node('risk_grid_valid', anonymous=True)
-    rate = rospy.Rate(10) # 10hz
-
-    params = scenario_params()
-    zoe = vehicle(agent_frame_id= "zoe/zoe_odom_origin")
-    target = vehicle(agent_frame_id= "test_vehicle")
-    risk_grid = grid(-28,-28,0.1,target)
-
-    for i in range(15):
-        params.ego_vehicle_vel = 10
-        params.other_vehicle_vel = i
-
-        # TODO create an object that will be called everytime I recive status value
-        run_scenario(params)
-
-    # while not rospy.is_shutdown():
-    #     will_collide, time = compute_collision_risk(zoe, target)
-    #     # if will_collide:
-    #     #     print("cars will collide within {:0.2f} sec".format(time))
-    #     # elif time != -1:
-    #     #     print("cars will not collide, minimum distance within {:0.2f} sec".format(time))
-    #     rate.sleep()
-
-
-
-if __name__ == '__main__':
-    listener()
-
-
-
-
-
-
-    # vehicle_marker_sub = message_filters.Subscriber('vehicles', MarkerArray)
-    # risk_grid_sub = message_filters.Subscriber('/zoe/risk_grid', FloatOccupancyGrid)
-    #
-    # ts = TimeSynchronizer([vehicle_marker_sub,risk_grid_sub],10)
-    # ts.registerCallback(callback)
-
-
-
-        # obj_risk_list = []
-        # for i in range(xmin,xmax):
-        #     for j in range(ymin, ymax):
-        #
-        #         # risk = risk_grid.data[i*num_col + j]
-        #         obj_risk_list.append(risk)
-
-
-        # print(self.target.l, self.target.w, self.target.h)
-        # print(center, yaw)

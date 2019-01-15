@@ -133,12 +133,14 @@ class ScenarioRunner(object):
         self.scenario_class = self.get_scenario_class_or_fail(args.scenario)
 
         # rospy.init_node('en_Mapping', anonymous=True)
+        self.collision_check = False
 
 
 
     def run(self, params = None):
 
         try:
+            self.collision_check = False
             uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
             roslaunch.configure_logging(uuid)
             launch = roslaunch.parent.ROSLaunchParent(uuid, ["/home/anshul/catkin_ws/src/carla_ros-bridge/client_cmcdot.launch"])
@@ -155,6 +157,7 @@ class ScenarioRunner(object):
             if not self.manager.analyze_scenario():
                 print("Success!")
             else:
+                self.collision_check = True
                 print("Failure!")
 
             launch.shutdown()
@@ -202,6 +205,7 @@ runner = ScenarioRunner(ARGUMENTS)
 def run_scenario(params):
     global runner
     runner.run(params)
+    return runner.collision_check
 
 if __name__ == '__main__':
     for i in range(3):

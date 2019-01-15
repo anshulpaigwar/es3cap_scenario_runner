@@ -259,7 +259,7 @@ class CollisionTest(Criterion):
         self._collision_sensor.listen(
             lambda event: self._count_collisions(weakref.ref(self), event))
         self._terminate_on_failure = True
-        self.pub = rospy.Publisher('collision_check', Bool, queue_size=10)
+        # self.pub = rospy.Publisher('collision_check', Bool, queue_size=10)
         self.if_collision = Bool()
 
     def update(self):
@@ -282,7 +282,7 @@ class CollisionTest(Criterion):
         self.logger.debug("%s.update()[%s->%s]" %
                           (self.__class__.__name__, self.status, new_status))
 
-        self.pub.publish(self.if_collision)
+        # self.pub.publish(self.if_collision)
         return new_status
 
     def terminate(self, new_status):
