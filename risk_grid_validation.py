@@ -44,6 +44,17 @@ resolution = 0.1
 agent_frame_id = "test_vehicle"
 
 
+# parser = argparse.ArgumentParser()
+# parser.add_argument('-s', '--save', dest='save_traces', action='store_true',
+#                     help='Save the traces')
+# args = parser.parse_args()
+
+
+
+
+
+
+
 class scenario_params(object):
     def __init__(self):
         self.ego_vehicle_vel = 0
@@ -121,6 +132,9 @@ class grid(object):
         xmin,ymin = box_coord.min(axis=0).astype(int)
         num_col = -self.grid_x_min*2/self.res
 
+        # print("zoe:", self.zoe.vel)
+        # print("target", self.target.vel)
+
         # print(cx, cy ,xmax,ymax,xmin,ymin)
 
         # check that bounding box is not out of grid index
@@ -153,22 +167,22 @@ class grid(object):
 
 
 
-class Recorder(object):
-    def __init__(self,risk_grid):
-        self.grid = risk_grid
-        self.trace = []
-        self.grid_sub = rospy.Subscriber('collision_check', Bool, self.callback)
-
-    def callback(self,msg):
-
-        self.status = msg.data
-        if self.grid.info == None:
-            return
-        trace_seq = self.grid.info + [self.status]
-        # formatted_trace = [ '%.2f' % elem for elem in trace_seq ]
-        # print(formatted_trace)
-        # self.trace.append(formatted_trace)
-        self.trace.append(trace_seq)
+# class Recorder(object):
+#     def __init__(self,risk_grid):
+#         self.grid = risk_grid
+#         self.trace = []
+#         self.grid_sub = rospy.Subscriber('collision_check', Bool, self.callback)
+#
+#     def callback(self,msg):
+#
+#         self.status = msg.data
+#         if self.grid.info == None:
+#             return
+#         trace_seq = self.grid.info + [self.status]
+#         # formatted_trace = [ '%.2f' % elem for elem in trace_seq ]
+#         # print(formatted_trace)
+#         # self.trace.append(formatted_trace)
+#         self.trace.append(trace_seq)
 
 
 
@@ -188,8 +202,8 @@ def listener():
     trace_dir = "/home/anshul/enable-s3/traces/"
 
     for i in range(10):
-        params.ego_vehicle_vel = 10
-        params.other_vehicle_vel = 10
+        params.ego_vehicle_vel = 6
+        params.other_vehicle_vel =8 
         # scenario = Recorder(risk_grid)
         risk_grid.trace = []
         trace_num = i
@@ -199,11 +213,11 @@ def listener():
         collision_check = run_scenario(params)
         # trace = np.around(np.array(scenario.trace),3)
         if collision_check == True:
+            print("It is a Failure")
             risk_grid.trace[-1][-1] = 1
-        np.savetxt(trace_path, risk_grid.trace,fmt='%.4f', delimiter=' ')
 
-
-
+        if ARGUMENTS.save:
+            np.savetxt(trace_path, risk_grid.trace,fmt='%.4f', delimiter=' ')
 
 
 if __name__ == '__main__':

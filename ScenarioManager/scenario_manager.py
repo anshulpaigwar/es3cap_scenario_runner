@@ -218,7 +218,8 @@ class ScenarioManager(object):
 
         CarlaDataProvider.cleanup()
 
-    def analyze_scenario(self, stdout, filename, junit):
+    def analyze_scenario(self):
+    # def analyze_scenario(self, stdout, filename, junit):
         """
         This function is intended to be called from outside and provide
         statistics about the scenario (human-readable, in form of a junit
@@ -241,7 +242,7 @@ class ScenarioManager(object):
             timeout = True
             result = "TIMEOUT"
 
-        output = ResultOutputProvider(self, result, stdout, filename, junit)
-        output.write()
+        # output = ResultOutputProvider(self, result, stdout, filename, junit)
+        # output.write()
 
         return failure or timeout

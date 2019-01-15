@@ -82,6 +82,9 @@ PARSER.add_argument(
     '--list', action="store_true", help='List all supported scenarios and exit')
 PARSER.add_argument(
     '-v', '--version', action='version', version='%(prog)s ' + str(VERSION))
+
+PARSER.add_argument('-s', '--save', action='store_true',
+                    help='Save the traces')
 ARGUMENTS = PARSER.parse_args()
 
 
@@ -135,12 +138,13 @@ class ScenarioRunner(object):
         # rospy.init_node('en_Mapping', anonymous=True)
         self.collision_check = False
 
+        self.args = args
+
 
 
     def run(self, params = None):
 
         try:
-            self.collision_check = False
             uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
             roslaunch.configure_logging(uuid)
             launch = roslaunch.parent.ROSLaunchParent(uuid, ["/home/anshul/catkin_ws/src/carla_ros-bridge/client_cmcdot.launch"])
@@ -155,6 +159,7 @@ class ScenarioRunner(object):
 
 
             if not self.manager.analyze_scenario():
+                self.collision_check = False
                 print("Success!")
             else:
                 self.collision_check = True
@@ -169,7 +174,17 @@ class ScenarioRunner(object):
             del self.scenario
 
         except:
+
+            if not self.manager.analyze_scenario():
+                self.collision_check = False
+                print("Success!")
+            else:
+                self.collision_check = True
+                print("Failure!")
+
             launch.shutdown()
+            time.sleep(2)
+            rospy.loginfo("carla_ros_bridge killed")
             self.manager.stop_scenario()
             del self.scenario
 
