@@ -758,6 +758,61 @@ class SteerVehicle(AtomicBehavior):
 
 
 
+class StopVehicleForTime(AtomicBehavior):
+
+    """
+    This class contains an atomic stoping behavior for given time.
+    """
+
+    def __init__(self, vehicle, ticks, name="wait"):
+        """
+        Setup vehicle and and amount of time to stay idle
+        """
+        super(StopVehicleForTime, self).__init__(name)
+        self.logger.debug("%s.__init__()" % (self.__class__.__name__))
+        self._ticks_to_stop = ticks
+        self._control = carla.VehicleControl()
+        self._vehicle = vehicle
+        self._ticks = 0
+
+    def update(self):
+        """
+        Set steer to steer_value until reaching full stop
+        """
+        new_status = py_trees.common.Status.RUNNING
+
+        if self._ticks < self._ticks_to_stop:
+            self._ticks += 1
+            self._control.brake = 1
+            # print(self._ticks)
+
+        else:
+            self._ticks = 0
+            new_status = py_trees.common.Status.SUCCESS
+            self._control.brake = 0
+
+        self.logger.debug("%s.update()[%s->%s]" %
+                          (self.__class__.__name__, self.status, new_status))
+
+        self._vehicle.apply_control(self._control)
+
+        return new_status
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class CollisionTrigger(AtomicBehavior):
 

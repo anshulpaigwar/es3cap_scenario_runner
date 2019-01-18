@@ -9,6 +9,8 @@ https://cocalc.com/projects/9288750d-aa44-43a9-8416-730920bddba8/files/Detect%20
 https://codepen.io/sveinatle/pen/OPqLKE?editors=011
 
 """
+import os
+import errno
 
 import numpy as np
 import math
@@ -44,14 +46,6 @@ resolution = 0.1
 agent_frame_id = "test_vehicle"
 
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument('-s', '--save', dest='save_traces', action='store_true',
-#                     help='Save the traces')
-# args = parser.parse_args()
-
-
-
-
 
 
 
@@ -59,9 +53,6 @@ class scenario_params(object):
     def __init__(self):
         self.ego_vehicle_vel = 0
         self.other_vehicle_vel = 0
-
-
-
 
 
 
@@ -76,6 +67,8 @@ class vehicle(object):
         self.vel_y = 0
         self.vel = 0
         self.pose = PoseStamped()
+        self._margin = 0.6 #(meters)
+        self._focus_margin = 2
         self.cmd_vel_subscriber = rospy.Subscriber('/carla/objects', ObjectArray, self.obj_callback)
 
     def obj_callback(self, objectArray):
@@ -86,15 +79,18 @@ class vehicle(object):
         vehicle_obj = obj[0]
         self.pose.pose = vehicle_obj.pose
         self.pose.header.frame_id = vehicle_obj.header.frame_id
-        self.l = vehicle_obj.shape.dimensions[0]
-        self.w = vehicle_obj.shape.dimensions[1]
-        self.h = vehicle_obj.shape.dimensions[2]
+        self.l = vehicle_obj.shape.dimensions[0] + self._margin
+        self.w = vehicle_obj.shape.dimensions[1] + self._margin
+        self.h = vehicle_obj.shape.dimensions[2] + self._margin
 
         self.vel_x = vehicle_obj.twist.linear.x
         self.vel_y = vehicle_obj.twist.linear.y
         self.vel = math.sqrt(self.vel_x**2 + self.vel_y**2)
-        # print(self.vel)
         self.box_coord = np.array([[self.l/2, -self.w/2], [self.l/2, self.w/2], [-self.l/2, self.w/2], [-self.l/2, -self.w/2]])
+        l = self.l + self._focus_margin
+        w = self.w + self._focus_margin
+        h = self.h + self._focus_margin
+        self.focus_coord = np.array([[l/2, -w/2], [l/2, w/2], [-l/2, w/2], [-l/2, -w/2]])
 
 
 
@@ -108,15 +104,18 @@ class grid(object):
         self.grid_y_min = y_min
         self.res = res
         self.tf_listener = tf.TransformListener()
-        self.grid_sub = rospy.Subscriber('/zoe/risk_grid', FloatOccupancyGrid, self.callback)
+        self.grid_sub = rospy.Subscriber('/zoe/state_grid', FloatOccupancyGrid, self.callback)
         self.trace = []
+        self.gt_focus = [] # Ground Truth Focus
+        self.cmcdot_focus = [] # output from cmcdot Focus
 
 
 
-    def callback(self, risk_grid):
 
-        # tranform the target vehicle in the frame of risk_grid (zoe/base_link)
-        (trans,rot) = self.tf_listener.lookupTransform(risk_grid.header.frame_id, self.target.pose.header.frame_id, rospy.Time(0))
+    def callback(self, state_grid):
+
+        # tranform the target vehicle in the frame of state_grid (zoe/base_link)
+        (trans,rot) = self.tf_listener.lookupTransform(state_grid.header.frame_id, self.target.pose.header.frame_id, rospy.Time(0))
         (roll, pitch, yaw) = euler_from_quaternion (rot)
 
         # origin of grid is at (grid_x_min,grid_y_min) with respect to zoe/base_link
@@ -128,61 +127,60 @@ class grid(object):
         box_coord = np.dot(self.target.box_coord, trans_matrix) + center  # bounding box coordinate of the target vehicle w.r.t grid origin
         box_coord = box_coord/self.res # bounding box coordinate cell number
 
-        xmax,ymax = box_coord.max(axis=0).astype(int)
-        xmin,ymin = box_coord.min(axis=0).astype(int)
-        num_col = -self.grid_x_min*2/self.res
+        xmax_box,ymax_box = box_coord.max(axis=0).astype(int)
+        xmin_box,ymin_box = box_coord.min(axis=0).astype(int)
+
+
+
+
+        focus_coord = np.dot(self.target.focus_coord, trans_matrix) + center  # bounding box coordinate of the target vehicle w.r.t grid origin
+        focus_coord = focus_coord/self.res # bounding box coordinate cell number
+
+        xmax_focus,ymax_focus = focus_coord.max(axis=0).astype(int)
+        xmin_focus,ymin_focus = focus_coord.min(axis=0).astype(int)
+
+
 
         # print("zoe:", self.zoe.vel)
         # print("target", self.target.vel)
-
         # print(cx, cy ,xmax,ymax,xmin,ymin)
 
         # check that bounding box is not out of grid index
-        if((xmin < 0) or (ymin < 0) or (xmax > risk_grid.info.height) or (ymax > risk_grid.info.width)):
+        if((xmin_focus < 0) or (ymin_focus < 0) or (xmax_focus > state_grid.info.height) or (ymax_focus > state_grid.info.width)):
             # print("target is out of grid")
             self.info = None
             return
 
-        risk_arr = (np.array(risk_grid.data)*255).astype('uint8')
-        risk_arr = risk_arr.reshape(risk_grid.info.height, risk_grid.info.width, risk_grid.nb_channels)
+        state_arr = (np.array(state_grid.data)*255).astype('uint8')
+        state_arr = state_arr.reshape(state_grid.info.height, state_grid.info.width, state_grid.nb_channels)
 
+        test_grid = state_grid
+        test_arr = np.zeros_like(state_arr)
+        # test_arr[ymin_focus:ymax_focus, xmin_focus:xmax_focus, 2] = 1
 
-        # risk_prob  = risk_arr[ymin:ymax, xmin:xmax, :3]
-        max_risk_1sec = risk_arr[ymin:ymax, xmin:xmax,0].max()
-        max_risk_2sec = risk_arr[ymin:ymax, xmin:xmax,1].max()
-        max_risk_3sec = risk_arr[ymin:ymax, xmin:xmax,2].max()
-        self.trace.append([risk_grid.header.stamp.to_sec(),
+        if self.target.vel > 0.3 :
+            test_arr[ymin_box:ymax_box, xmin_box:xmax_box, 1] = 255
+        else:
+            test_arr[ymin_box:ymax_box, xmin_box:xmax_box, 0] = 255
+
+        self.gt_focus.append(test_arr[ymin_focus:ymax_focus, xmin_focus:xmax_focus,:3])
+        self.cmcdot_focus.append(state_arr[ymin_focus:ymax_focus, xmin_focus:xmax_focus,:3])
+
+        self.trace.append([state_grid.header.stamp.to_sec(),
                     self.zoe.vel, self.target.vel,
-                    max_risk_1sec, max_risk_2sec, max_risk_3sec,
-                    -self.grid_x_min, -self.grid_y_min, cx, cy, 0])
+                    -self.grid_x_min, -self.grid_y_min, cx, cy])
 
-        # test_grid = risk_grid
-        # test_arr = np.zeros_like(risk_arr)
-        # test_arr[ymin:ymax,xmin:xmax,:] = 1
+
         # test_arr = test_arr.flatten().tolist()
         # test_grid.data = test_arr
         # pub.publish(test_grid)
 
 
+        # # risk_prob  = risk_arr[ymin:ymax, xmin:xmax, :3]
+        # max_risk_1sec = risk_arr[ymin:ymax, xmin:xmax,0].max()
+        # max_risk_2sec = risk_arr[ymin:ymax, xmin:xmax,1].max()
+        # max_risk_3sec = risk_arr[ymin:ymax, xmin:xmax,2].max()
 
-
-
-# class Recorder(object):
-#     def __init__(self,risk_grid):
-#         self.grid = risk_grid
-#         self.trace = []
-#         self.grid_sub = rospy.Subscriber('collision_check', Bool, self.callback)
-#
-#     def callback(self,msg):
-#
-#         self.status = msg.data
-#         if self.grid.info == None:
-#             return
-#         trace_seq = self.grid.info + [self.status]
-#         # formatted_trace = [ '%.2f' % elem for elem in trace_seq ]
-#         # print(formatted_trace)
-#         # self.trace.append(formatted_trace)
-#         self.trace.append(trace_seq)
 
 
 
@@ -199,24 +197,25 @@ def listener():
     target = vehicle(agent_frame_id= "test_vehicle")
     risk_grid = grid(-28,-28,0.1,target, zoe)
 
-    trace_dir = "/home/anshul/enable-s3/traces/"
+    trace_dir = "/home/anshul/enable-s3/traces/state_grid/"
 
     for i in range(7,15):
+
+        files = os.listdir(trace_dir)
+
         params.ego_vehicle_vel = 8
         params.other_vehicle_vel =i
         # scenario = Recorder(risk_grid)
         risk_grid.trace = []
-        trace_num = i
-        trace_path = trace_dir + "%06d.txt" % trace_num
+        trace_path = trace_dir + "%06d/data.txt" % len(files)
 
         # TODO create an object that will be called everytime I recive status value
         collision_check = run_scenario(params)
-        # trace = np.around(np.array(scenario.trace),3)
 
         if ARGUMENTS.save:
-            if collision_check == True:
-                print("It is a Failure")
-                risk_grid.trace[-1][-1] = 1
+            # if collision_check == True:
+            #     print("It is a Failure")
+            #     risk_grid.trace[-1][-1] = 1
 
 
             np.savetxt(trace_path, risk_grid.trace,fmt='%.4f', delimiter=' ')
@@ -263,6 +262,34 @@ if __name__ == '__main__':
 
 
 
+
+
+# class Recorder(object):
+#     def __init__(self,risk_grid):
+#         self.grid = risk_grid
+#         self.trace = []
+#         self.grid_sub = rospy.Subscriber('collision_check', Bool, self.callback)
+#
+#     def callback(self,msg):
+#
+#         self.status = msg.data
+#         if self.grid.info == None:
+#             return
+#         trace_seq = self.grid.info + [self.status]
+#         # formatted_trace = [ '%.2f' % elem for elem in trace_seq ]
+#         # print(formatted_trace)
+#         # self.trace.append(formatted_trace)
+#         self.trace.append(trace_seq)
+
+
+
+
+
+
+
+
+
+############################# IMPORTANT ######################################
 
 
 

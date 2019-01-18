@@ -106,8 +106,8 @@ def main(args):
             if args.junit is not None:
                 junit_filename = args.junit.split(".")[0] + "_{}.xml".format(i)
 
-            if not manager.analyze_scenario(
-                    args.output, args.filename, junit_filename):
+            if not manager.analyze_scenario():
+                    # args.output, args.filename, junit_filename):
                 print("Success!")
             else:
                 print("Failure!")
@@ -153,7 +153,7 @@ if __name__ == '__main__':
         '-v', '--version', action='version', version='%(prog)s ' + str(VERSION))
     ARGUMENTS = PARSER.parse_args()
 
-    ARGUMENTS.scenario = "JunctionCrossingRisk"
+    # ARGUMENTS.scenario = "JunctionCrossingRisk"
 
     if ARGUMENTS.list:
         print("Currently the following scenarios are supported:")

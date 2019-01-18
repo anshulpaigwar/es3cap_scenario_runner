@@ -30,6 +30,7 @@ from Scenarios.no_signal_junction_crossing import NoSignalJunctionCrossing
 from Scenarios.junction_crossing_risk_estimation import JunctionCrossingRisk
 from Scenarios.object_crash_intersection import *
 from Scenarios.control_loss import *
+from Scenarios.dynamic_obj_detection import DynamicObjectDetect
 from ScenarioManager.scenario_manager import ScenarioManager
 
 # from risk_grid_validation import *
@@ -51,7 +52,8 @@ SCENARIOS = {
     "VehicleTurningRight",
     "VehicleTurningLeft",
     "ControlLoss",
-    "JunctionCrossingRisk"
+    "JunctionCrossingRisk",
+    "DynamicObjectDetect"
 }
 
 
@@ -214,7 +216,8 @@ class ScenarioRunner(object):
 
 
 
-ARGUMENTS.scenario = "JunctionCrossingRisk"
+# ARGUMENTS.scenario = "JunctionCrossingRisk"
+ARGUMENTS.scenario = "DynamicObjectDetect"
 runner = ScenarioRunner(ARGUMENTS)
 
 def run_scenario(params):
