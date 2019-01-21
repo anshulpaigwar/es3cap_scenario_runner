@@ -17,6 +17,8 @@ import math
 import matplotlib.pyplot as plt
 import argparse
 from argparse import RawTextHelpFormatter
+# from PIL import Image
+import cv2
 
 
 
@@ -176,12 +178,6 @@ class grid(object):
         # pub.publish(test_grid)
 
 
-        # # risk_prob  = risk_arr[ymin:ymax, xmin:xmax, :3]
-        # max_risk_1sec = risk_arr[ymin:ymax, xmin:xmax,0].max()
-        # max_risk_2sec = risk_arr[ymin:ymax, xmin:xmax,1].max()
-        # max_risk_3sec = risk_arr[ymin:ymax, xmin:xmax,2].max()
-
-
 
 
 
@@ -195,34 +191,64 @@ def listener():
     params = scenario_params()
     zoe = vehicle(agent_frame_id= "zoe/zoe_odom_origin")
     target = vehicle(agent_frame_id= "test_vehicle")
-    risk_grid = grid(-28,-28,0.1,target, zoe)
+    state_grid = grid(-28,-28,0.1,target, zoe)
 
-    trace_dir = "/home/anshul/enable-s3/traces/state_grid/"
+    all_trace_dir = "/home/anshul/enable-s3/traces/state_grid/"
 
     for i in range(7,15):
 
-        files = os.listdir(trace_dir)
+        files = os.listdir(all_trace_dir)
 
         params.ego_vehicle_vel = 8
-        params.other_vehicle_vel =i
-        # scenario = Recorder(risk_grid)
-        risk_grid.trace = []
-        trace_path = trace_dir + "%06d/data.txt" % len(files)
+        params.other_vehicle_vel =10
+
+        # empty the trce informations stored
+        state_grid.trace = []
+        state_grid.gt_focus = []
+        state_grid.cmcdot_focus = []
 
         # TODO create an object that will be called everytime I recive status value
         collision_check = run_scenario(params)
 
         if ARGUMENTS.save:
-            # if collision_check == True:
-            #     print("It is a Failure")
-            #     risk_grid.trace[-1][-1] = 1
+
+            # We check how many number of folders are present in the trace dir then make a new folder with a higher Number
+            # So that all the trace we record are in new folder
+            new_trace_dir = all_trace_dir + "%06d/" % len(files)
+            gt_focus_dir = new_trace_dir + "/true_focus/"
+            cmcdot_focus_dir = new_trace_dir + "/cmcdot_focus/"
+
+            try:
+                os.makedirs(gt_focus_dir)
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
+            try:
+                os.makedirs(cmcdot_focus_dir)
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
+
+            np.savetxt(new_trace_dir + "data.txt", state_grid.trace,fmt='%.4f', delimiter=' ')
+
+            for a in range(len(state_grid.gt_focus)):
+                cv2.imwrite(gt_focus_dir + "%03d.png"%a, state_grid.gt_focus[a])
+                cv2.imwrite(cmcdot_focus_dir + "%03d.png"%a, state_grid.cmcdot_focus[a])
 
 
-            np.savetxt(trace_path, risk_grid.trace,fmt='%.4f', delimiter=' ')
 
 
 if __name__ == '__main__':
     listener()
+
+
+
+# Saving image using pillow:
+                # pil_img = Image.fromarray(state_grid.gt_focus[a])
+                # pil_img.save(gt_focus_dir + "%03d.png"%a)
+                # pil_img = Image.fromarray(state_grid.cmcdot_focus[a])
+                # pil_img.save(cmcdot_focus_dir + "%03d.png"%a)
+
 
 
 

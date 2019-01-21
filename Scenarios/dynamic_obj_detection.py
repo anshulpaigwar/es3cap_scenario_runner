@@ -87,11 +87,11 @@ class DynamicObjectDetect(BasicScenario):
             self._lidar_location,
             self.ego_vehicle)
 
-        self.camera_rgb = setup_sensor(
-            world,
-            "camera.rgb",
-            self._camera_location,
-            self.ego_vehicle)
+        # self.camera_rgb = setup_sensor(
+        #     world,
+        #     "camera.rgb",
+        #     self._camera_location,
+        #     self.ego_vehicle)
 
         super(DynamicObjectDetect, self).__init__(
             name="DynamicObjectDetect",
