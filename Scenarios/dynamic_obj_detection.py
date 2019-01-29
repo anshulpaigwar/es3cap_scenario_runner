@@ -42,7 +42,7 @@ class DynamicObjectDetect(BasicScenario):
 
 
     _lidar_location = carla.Transform(
-        carla.Location(x=0, y=0, z=2.4),carla.Rotation(roll=0.74484513, pitch=0.85943669))
+        carla.Location(x=0, y=0, z=2.32),carla.Rotation(roll=0.74484513, pitch=0.85943669))
 
     _camera_location = carla.Transform(
         carla.Location(x= -4, y=0, z=3.5), carla.Rotation(pitch=-15))
