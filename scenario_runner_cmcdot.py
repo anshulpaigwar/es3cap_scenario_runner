@@ -216,16 +216,8 @@ class ScenarioRunner(object):
 
 
 
-# ARGUMENTS.scenario = "JunctionCrossingRisk"
-ARGUMENTS.scenario = "DynamicObjectDetect"
-runner = ScenarioRunner(ARGUMENTS)
-
-def run_scenario(params):
-    global runner
-    runner.run(params)
-    return runner.collision_check
-
 if __name__ == '__main__':
+    runner = ScenarioRunner(ARGUMENTS)
     for i in range(3):
         runner.run()
 
@@ -233,6 +225,15 @@ if __name__ == '__main__':
 
 
 
+
+# ARGUMENTS.scenario = "JunctionCrossingRisk"
+# ARGUMENTS.scenario = "DynamicObjectDetect"
+
+
+# def run_scenario(params):
+#     global runner
+#     runner.run(params)
+#     return runner.collision_check
 
 
 

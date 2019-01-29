@@ -187,6 +187,8 @@ def listener():
 
     rospy.init_node('risk_grid_valid', anonymous=True)
     rate = rospy.Rate(10) # 10hz
+    ARGUMENTS.scenario = "DynamicObjectDetect"
+    runner = ScenarioRunner(ARGUMENTS)
 
     params = scenario_params()
     zoe = vehicle(agent_frame_id= "zoe/zoe_odom_origin")
@@ -207,8 +209,8 @@ def listener():
         state_grid.gt_focus = []
         state_grid.cmcdot_focus = []
 
-        # TODO create an object that will be called everytime I recive status value
-        collision_check = run_scenario(params)
+        runner.run(params)
+        collision_check = runner.collision_check
 
         if ARGUMENTS.save:
 

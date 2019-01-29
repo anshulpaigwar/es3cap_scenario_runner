@@ -88,11 +88,11 @@ class JunctionCrossingRisk(BasicScenario):
             self._lidar_location,
             self.ego_vehicle)
 
-        self.camera_rgb = setup_sensor(
-            world,
-            "camera.rgb",
-            self._camera_location,
-            self.ego_vehicle)
+        # self.camera_rgb = setup_sensor(
+        #     world,
+        #     "camera.rgb",
+        #     self._camera_location,
+        #     self.ego_vehicle)
 
         super(JunctionCrossingRisk, self).__init__(
             name="JunctionCrossingRisk",

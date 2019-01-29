@@ -192,28 +192,30 @@ class grid(object):
 def listener():
 
     rospy.init_node('risk_grid_valid', anonymous=True)
-    rate = rospy.Rate(10) # 10hz
+    # rate = rospy.Rate(10) # 10hz
+
+    ARGUMENTS.scenario = "JunctionCrossingRisk"
+    runner = ScenarioRunner(ARGUMENTS)
 
     params = scenario_params()
     zoe = vehicle(agent_frame_id= "zoe/zoe_odom_origin")
     target = vehicle(agent_frame_id= "test_vehicle")
     risk_grid = grid(-28,-28,0.1,target, zoe)
 
-    trace_dir = "/home/anshul/enable-s3/traces/"
+    trace_dir = "/home/anshul/enable-s3/traces/risk_grid/"
 
-    for i in range(7,15):
-        params.ego_vehicle_vel = 8
-        params.other_vehicle_vel =i
+    for i in range(10):
+        params.ego_vehicle_vel = 8.5
+        params.other_vehicle_vel =8.5
         # scenario = Recorder(risk_grid)
         risk_grid.trace = []
-        trace_num = i
-        trace_path = trace_dir + "%06d.txt" % trace_num
 
-        # TODO create an object that will be called everytime I recive status value
-        collision_check = run_scenario(params)
-        # trace = np.around(np.array(scenario.trace),3)
+        runner.run(params)
+        collision_check = runner.collision_check
 
         if ARGUMENTS.save:
+            trace_num = i
+            trace_path = trace_dir + "%06d.txt" % trace_num
             if collision_check == True:
                 print("It is a Failure")
                 risk_grid.trace[-1][-1] = 1
@@ -226,6 +228,13 @@ if __name__ == '__main__':
     listener()
 
 
+
+
+
+
+        # # TODO create an object that will be called everytime I recive status value
+        # collision_check = run_scenario(params)
+        # # trace = np.around(np.array(scenario.trace),3)
 
 
     # while not rospy.is_shutdown():
