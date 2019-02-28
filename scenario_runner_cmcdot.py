@@ -28,6 +28,7 @@ from Scenarios.opposite_vehicle_taking_priority import *
 from Scenarios.object_crash_vehicle import *
 from Scenarios.no_signal_junction_crossing import NoSignalJunctionCrossing
 from Scenarios.junction_crossing_risk_estimation import JunctionCrossingRisk
+from Scenarios.risk_estimation import RiskEstimation,RiskEstimation2
 from Scenarios.object_crash_intersection import *
 from Scenarios.control_loss import *
 from Scenarios.dynamic_obj_detection import DynamicObjectDetect
@@ -53,6 +54,8 @@ SCENARIOS = {
     "VehicleTurningLeft",
     "ControlLoss",
     "JunctionCrossingRisk",
+    "RiskEstimation",
+    "RiskEstimation2",
     "DynamicObjectDetect"
 }
 
@@ -87,6 +90,9 @@ PARSER.add_argument(
 
 PARSER.add_argument('-s', '--save', action='store_true',
                     help='Save the traces')
+
+PARSER.add_argument('--var1', default=1, help='Number of variations scenario executions')
+PARSER.add_argument('--var2', default=1, help='Number of variations scenario executions')
 ARGUMENTS = PARSER.parse_args()
 
 
@@ -153,7 +159,7 @@ class ScenarioRunner(object):
             launch.start()
             rospy.loginfo("carla_ros_bridge started")
             time.sleep(3)
-            # rospy.sleep(2)
+
 
             self.scenario = self.scenario_class(self.world,debug_mode=False, params = params)
             self.manager.load_scenario(self.scenario)

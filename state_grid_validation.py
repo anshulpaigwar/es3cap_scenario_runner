@@ -182,6 +182,21 @@ class grid(object):
 
 
 
+class CollisionCheck(object):
+    def __init__(self):
+        self.status = False
+        self.grid_sub = rospy.Subscriber('collision_check', Bool, self.callback)
+
+    def callback(self,msg):
+        self.status = msg.data
+
+
+
+
+
+
+
+
 
 def listener():
 
@@ -292,22 +307,7 @@ if __name__ == '__main__':
 
 
 
-# class Recorder(object):
-#     def __init__(self,risk_grid):
-#         self.grid = risk_grid
-#         self.trace = []
-#         self.grid_sub = rospy.Subscriber('collision_check', Bool, self.callback)
-#
-#     def callback(self,msg):
-#
-#         self.status = msg.data
-#         if self.grid.info == None:
-#             return
-#         trace_seq = self.grid.info + [self.status]
-#         # formatted_trace = [ '%.2f' % elem for elem in trace_seq ]
-#         # print(formatted_trace)
-#         # self.trace.append(formatted_trace)
-#         self.trace.append(trace_seq)
+
 
 
 

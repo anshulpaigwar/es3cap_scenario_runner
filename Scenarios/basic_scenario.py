@@ -149,7 +149,11 @@ class BasicScenario(object):
         - Removal of the vehicles
         """
         actors = [self.ego_vehicle] + self.other_vehicles + [self.lidar] +[self.camera_rgb]
-        for actor in actors:
-            if actor is not None:
-                actor.destroy()
-                actor = None
+        for i, _ in enumerate(actors):
+            if actors[i] is not None:
+                actors[i].destroy()
+                actors[i] = None
+        # for actor in actors:
+        #     if actor is not None:
+        #         actor.destroy()
+        #         actor = None

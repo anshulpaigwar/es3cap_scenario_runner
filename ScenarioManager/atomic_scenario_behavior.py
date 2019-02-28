@@ -434,10 +434,10 @@ class KeepVelocityPID(AtomicBehavior):
         self._target_velocity = target_velocity
         self._last_error = 0
         self._i_error = 0
-        self._dt = 0.05
-        self.k_p = 0.5#0.4
-        self.k_d = 0.03#0.01
-        self.k_i = 0.01
+        self._dt = 0.05#0.05
+        self.k_p = 0.3 #0.5
+        self.k_d = 0.08#0.03
+        self.k_i = 0.02#0.01
 
         self._control.steering = 0
 

@@ -16,7 +16,7 @@ import math
 import matplotlib.pyplot as plt
 import argparse
 from argparse import RawTextHelpFormatter
-
+import time
 
 
 import rospy
@@ -26,13 +26,15 @@ import message_filters
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
 from derived_object_msgs.msg import Object, ObjectArray
-
+import message_filters
 
 # from ackermann_msgs.msg import AckermannDrive
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from visualization_msgs.msg import MarkerArray, Marker
-from message_filters import TimeSynchronizer, Subscriber
+from message_filters import TimeSynchronizer, Subscriber,ApproximateTimeSynchronizer
 from e_motion_perception_msgs.msg import FloatOccupancyGrid
+from e_motion_perception_msgs.msg import VelocityGrid
+
 
 from scenario_runner_cmcdot import *
 
@@ -102,17 +104,20 @@ class grid(object):
         self.grid_y_min = y_min
         self.res = res
         self.tf_listener = tf.TransformListener()
-        self.grid_sub = rospy.Subscriber('/zoe/risk_grid', FloatOccupancyGrid, self.callback)
         self.trace = []
         self.collision = collision
-	self.prev_collision_status = 0
+        self.prev_collision_status = 0
         self.prev_time_stamp = 0.0
         self.skips = 0.0
+        self.risk_grid_sub = message_filters.Subscriber('/zoe/risk_grid', FloatOccupancyGrid)
+        self.velocity_grid_sub = message_filters.Subscriber('/zoe/velocity_grid', VelocityGrid)
+        self.ts = message_filters.ApproximateTimeSynchronizer([self.risk_grid_sub, self.velocity_grid_sub],2,0.3)
+        self.ts.registerCallback(self.callback)
 
 
 
-    def callback(self, risk_grid):
-
+    def callback(self, risk_grid, velocity_grid):
+        # start = time.time()
         # tranform the target vehicle in the frame of risk_grid (zoe/base_link)
         (trans,rot) = self.tf_listener.lookupTransform(risk_grid.header.frame_id, self.target.pose.header.frame_id, rospy.Time(0))
         (roll, pitch, yaw) = euler_from_quaternion (rot)
@@ -129,11 +134,6 @@ class grid(object):
         xmax,ymax = box_coord.max(axis=0).astype(int)
         xmin,ymin = box_coord.min(axis=0).astype(int)
 
-
-        # print("zoe:", self.zoe.vel)
-        # print("target", self.target.vel)
-        # print(cx, cy ,xmax,ymax,xmin,ymin)
-
         # check that bounding box is not out of grid index
         if((xmin < 0) or (ymin < 0) or (xmax > risk_grid.info.height) or (ymax > risk_grid.info.width)):
             # print("target is out of grid")
@@ -142,31 +142,54 @@ class grid(object):
         if(risk_grid.header.stamp.to_sec() == self.prev_time_stamp):
             self.skips +=1
             return
-
+        # time1 = time.time()
+        # print("time1: ", time1 - start)
         risk_arr = (np.array(risk_grid.data)*255).astype('uint8')
         risk_arr = risk_arr.reshape(risk_grid.info.height, risk_grid.info.width, risk_grid.nb_channels)
 
+        velo_arr = np.array(velocity_grid.data)
+        velo_arr = velo_arr.reshape(velocity_grid.info.height, velocity_grid.info.width, velocity_grid.nb_channels)
 
-        # risk_prob  = risk_arr[ymin:ymax, xmin:xmax, :3]
+        # time2 = time.time()
+        # print("time2: ", time2-time1)
         max_risk_1sec = risk_arr[ymin:ymax, xmin:xmax,0].max()
         max_risk_2sec = risk_arr[ymin:ymax, xmin:xmax,1].max()
         max_risk_3sec = risk_arr[ymin:ymax, xmin:xmax,2].max()
 
+        # time3 = time.time()
+        # print("time3: ", time3 - time2)
+        risk_3sec = risk_arr[ymin:ymax, xmin:xmax,2]
+        ind = np.unravel_index(np.argmax(risk_3sec, axis=None), risk_3sec.shape)
 
+        vel_estimate  = velo_arr[ymin:ymax, xmin:xmax, :2] * self.res
+        target_vel_est = vel_estimate[ind]
+        t_vel = math.sqrt(target_vel_est[0]**2 + target_vel_est[1]**2)
 
-        will_collide, time = compute_collision_risk(self.zoe, self.target)
+        # print(self.target.vel, math.sqrt(target_vel_est[0]**2 + target_vel_est[1]**2))
 
+        # time4 = time.time()
+        # print("time4: ", time4-time3)
+
+        will_collide, minDist_time = compute_collision_risk(self.zoe, self.target)
+
+        # time5 = time.time()
+        # print("time5: ", time5-time4)
 
 
     	if self.prev_collision_status == 0:
     		self.prev_collision_status = self.collision.status
 
         self.trace.append([risk_grid.header.stamp.to_sec(),
-                    self.zoe.vel, self.target.vel,
+                    self.zoe.vel, self.target.vel,t_vel,
                     max_risk_1sec, max_risk_2sec, max_risk_3sec,
-                    -self.grid_x_min, -self.grid_y_min, cx, cy, self.prev_collision_status, will_collide, time])
+                    -self.grid_x_min, -self.grid_y_min, cx, cy, self.prev_collision_status, will_collide, minDist_time])
 
         self.prev_time_stamp = risk_grid.header.stamp.to_sec()
+
+
+        # time6 = time.time()
+        # print("time6: ", time6-time5)
+        # print("call_time: ", time6-start)
 
         # test_grid = risk_grid
         # test_arr = np.zeros_like(risk_arr)
@@ -224,12 +247,12 @@ def compute_collision_risk(zoe , target):
     # dy = a_y-b_y
     # dvx = a_vx - b_vx
     # dvy = a_vy - b_vy
-
+    #
     # A = (dvx**2 + dvy**2)
     # if A == 0:
 	# minDist_time = -1
 	# return will_collide, minDist_time
-
+    #
     # B = 2*(dx * dvx + dy * dvy)
     # C = dx**2 + dy**2 - collision_dist**2
     # collision_time = (-2*B - math.sqrt(B**2 - 4 *A *C)) / (2*A)
@@ -258,63 +281,65 @@ def compute_collision_risk(zoe , target):
 
 
 def listener():
-
     rospy.init_node('risk_grid_valid', anonymous=True)
     # rate = rospy.Rate(10) # 10hz
 
-    ARGUMENTS.scenario = "JunctionCrossingRisk"
-    # ARGUMENTS.scenario = "RiskEstimation"
+    # ARGUMENTS.scenario = "JunctionCrossingRisk"
+    ARGUMENTS.scenario = "RiskEstimation"
     runner = ScenarioRunner(ARGUMENTS)
 
     params = scenario_params()
     collision = CollisionCheck()
     zoe = vehicle(agent_frame_id= "zoe/zoe_odom_origin")
     target = vehicle(agent_frame_id= "test_vehicle")
+
     risk_grid = grid(-28,-28,0.1,target, zoe, collision)
 
-    all_trace_dir = "/home/anshul/enable-s3/traces/dynamic/"
+    all_trace_dir = "/home/anshul/enable-s3/traces/risk_vel_bike/"
 
 
-    for variation in range(1):
-        files = os.listdir(all_trace_dir)
-        new_trace_dir = all_trace_dir + "%06d/" % len(files)
+
+    files = os.listdir(all_trace_dir)
+    new_trace_dir = all_trace_dir + "%06d/" % len(files)
 
 
-        uuidx = roslaunch.rlutil.get_or_generate_uuid(None, False)
-        roslaunch.configure_logging(uuidx)
-        launchx = roslaunch.parent.ROSLaunchParent(uuidx, ["/home/anshul/catkin_ws/src/chroma-irt/zoe_ros_apps/launch/cmcdot_carla.launch"])
-        launchx.start()
-        rospy.loginfo("cmcdot started")
-        time.sleep(3)
+    uuidx = roslaunch.rlutil.get_or_generate_uuid(None, False)
+    roslaunch.configure_logging(uuidx)
+    launchx = roslaunch.parent.ROSLaunchParent(uuidx, ["/home/anshul/catkin_ws/src/chroma-irt/zoe_ros_apps/launch/cmcdot_carla.launch"])
+    launchx.start()
+    rospy.loginfo("cmcdot started")
+    time.sleep(3)
+    print(ARGUMENTS.var)
+    print(type(ARGUMENTS.var))
 
 
-        for trace_num in range(10):
-            params.ego_vehicle_vel = 4.25 + 0.5* float(ARGUMENTS.var1)
-            # params.other_vehicle_vel = 8.7
-            params.other_vehicle_vel = params.ego_vehicle_vel  -0.25  +0.25 * float(ARGUMENTS.var2)
-            # scenario = Recorder(risk_grid)
-	    # append the parameters used for generating the trace so that trace can be reproduced
-            risk_grid.trace = [[0,params.ego_vehicle_vel,params.other_vehicle_vel,0,0,0,0,0,0,0,0,0,0]]
-            risk_grid.skips = 0
-            risk_grid.prev_collision_status = 0
+    for trace_num in range(10):
+        params.ego_vehicle_vel = 0
+        # params.other_vehicle_vel = 8.7
+        params.other_vehicle_vel = 4.8 + 0.3 * float(ARGUMENTS.var)
+        # scenario = Recorder(risk_grid)
+        # append the parameters used for generating the trace so that trace can be reproduced
+        risk_grid.trace = [[0,params.ego_vehicle_vel,params.other_vehicle_vel,0,0,0,0,0,0,0,0,0,0,0]]
+        risk_grid.skips = 0
+        risk_grid.prev_collision_status = 0
 
-            runner.run(params)
+        runner.run(params)
 
-            print("/n Number of timestep skipped %d"%risk_grid.skips)
+        print("/n Number of timestep skipped %d"%risk_grid.skips)
 
-            if ARGUMENTS.save:
-                try:
-                    os.makedirs(new_trace_dir)
-                except OSError as e:
-                    if e.errno != errno.EEXIST:
-                        raise
+        if ARGUMENTS.save:
+            try:
+                os.makedirs(new_trace_dir)
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
 
-                trace_path = new_trace_dir + "%06d.txt" % trace_num
-                np.savetxt(trace_path, risk_grid.trace,fmt='%.4f', delimiter=' ')
+            trace_path = new_trace_dir + "%06d.txt" % trace_num
+            np.savetxt(trace_path, risk_grid.trace,fmt='%.4f', delimiter=' ')
 
-        launchx.shutdown()
-        time.sleep(2)
-        rospy.loginfo("cmcdot killed")
+    launchx.shutdown()
+    time.sleep(2)
+    rospy.loginfo("cmcdot killed")
 
 
 if __name__ == '__main__':
