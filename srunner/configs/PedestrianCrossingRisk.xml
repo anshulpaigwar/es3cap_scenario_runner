@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- <scenarios>
+    <scenario name="JunctionCrossingRisk" type="JunctionCrossingRisk" town="Town03">
+        <ego_vehicle x="4.5" y="-60" z="0.5" yaw="271.5" model='vehicle.nissan.micra' />
+        <other_actor x="-13.5" y="-131.5" z="0.5" yaw="1.5" model="vehicle.tesla.model3" />
+
+    </scenario>
+</scenarios>
+ -->
+
+
+
+<scenarios>
+    <scenario name="PedestrianCrossingRisk" type="PedestrianCrossingRisk" town="Town03">
+        <ego_vehicle x="4.5" y="-60" z="0.5" yaw="271.5" model='vehicle.nissan.micra' />
+        <!-- <pedestrian x="-70" y="-136.4" z="0.5" yaw="1.5" model="walker.pedestrian.0002" /> -->
+        
+        <!-- <pedestrian x="-17.1" y="-127.4" z="0.5" yaw="1.5" model="walker.pedestrian.0002" /> -->
+        <pedestrian x="-25.4" y="-134.0" z="0.5" yaw="1.5" model="walker.pedestrian.0002" />
+        <!-- <pedestrian x="-33.3" y="-127.9" z="0.5" yaw="1.5" model="walker.pedestrian.0002" /> -->
+    </scenario>
+</scenarios>

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<scenarios>
+    <scenario name="AbnormalBehaviourRisk" type="AbnormalBehaviourRisk" town="Town03">
+        <ego_vehicle x="152.7" y="200.2" z="3.5" yaw="180" model='vehicle.nissan.micra' />
+        <other_actor x="133.8" y="193.2" z="3.5" yaw="181" model="vehicle.tesla.model3" />
+        <other_actor x="131.3" y="207.1" z="3.5" yaw="180" model="vehicle.tesla.model3" />
+    </scenario>
+
+<!--     <scenario name="AbnormalBraking" type="AbnormalBraking" town="Town03">
+        <ego_vehicle x="152.7" y="200.2" z="3.5" yaw="180" model='vehicle.nissan.micra' />
+        <other_actor x="133.8" y="193.2" z="3.5" yaw="181" model="vehicle.tesla.model3" />
+        <other_actor x="131.3" y="207.1" z="3.5" yaw="180" model="vehicle.tesla.model3" />
+    </scenario> -->
+
+</scenarios>

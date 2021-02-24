@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- <scenarios>
+    <scenario name="JunctionCrossingRisk" type="JunctionCrossingRisk" town="Town03">
+        <ego_vehicle x="4.5" y="-60" z="0.5" yaw="271.5" model='vehicle.nissan.micra' />
+        <other_actor x="-13.5" y="-131.5" z="0.5" yaw="1.5" model="vehicle.tesla.model3" />
+
+    </scenario>
+</scenarios>
+ -->
+
+<scenarios>
+    <scenario name="JunctionCrossingRisk" type="JunctionCrossingRisk" town="Town03">
+        <ego_vehicle x="-6.4" y="-60" z="0.5" yaw="271.5" model='vehicle.nissan.micra' />
+        <other_actor x="-70" y="-136.4" z="0.5" yaw="1.5" model="vehicle.tesla.model3" />
+        <other_actor x="-13.5" y="-131.5" z="0.5" yaw="1.5" model="vehicle.carlamotors.carlacola" />
+    </scenario>
+</scenarios>
+
+
+<!-- <scenarios>
+    <scenario name="JunctionCrossingRisk" type="JunctionCrossingRisk" town="Town03">
+        <ego_vehicle x="4.5" y="-60" z="0.5" yaw="271.5" model='vehicle.nissan.micra' />
+        <pedestrian x="-70" y="-136.4" z="0.5" yaw="1.5" model="walker.pedestrian.0002" />
+    </scenario>
+</scenarios> -->
