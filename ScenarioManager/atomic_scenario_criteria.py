@@ -259,7 +259,10 @@ class CollisionTest(Criterion):
         self._collision_sensor.listen(
             lambda event: self._count_collisions(weakref.ref(self), event))
         self._terminate_on_failure = True
-        self.pub = rospy.Publisher('collision_check', Bool, queue_size=10)
+
+        self.ros_node_initiliased = False # TODO: temporary fix
+        if (self.ros_node_initiliased):
+            self.pub = rospy.Publisher('collision_check', Bool, queue_size=10)
         self.if_collision = Bool()
 
     def update(self):
@@ -282,7 +285,8 @@ class CollisionTest(Criterion):
         self.logger.debug("%s.update()[%s->%s]" %
                           (self.__class__.__name__, self.status, new_status))
 
-        self.pub.publish(self.if_collision)
+        if (self.ros_node_initiliased): # TODO: temporary fix
+            self.pub.publish(self.if_collision)
         return new_status
 
     def terminate(self, new_status):
@@ -320,7 +324,7 @@ class KeepLaneTest(Criterion):
 
         world = self.vehicle.get_world()
         blueprint = world.get_blueprint_library().find(
-            'sensor.other.lane_detector')
+            'sensor.other.lane_invasion')
         self._lane_sensor = world.spawn_actor(
             blueprint, carla.Transform(), attach_to=self.vehicle)
         self._lane_sensor.listen(

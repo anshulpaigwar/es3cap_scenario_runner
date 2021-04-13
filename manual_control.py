@@ -278,7 +278,7 @@ class HUD(object):
             return
         t = world.vehicle.get_transform()
         v = world.vehicle.get_velocity()
-        c = world.vehicle.get_vehicle_control()
+        c = world.vehicle.get_control()
         heading = 'N' if abs(t.rotation.yaw) < 89.5 else ''
         heading += 'S' if abs(t.rotation.yaw) > 90.5 else ''
         heading += 'E' if 179.5 > t.rotation.yaw > 0.5 else ''
@@ -293,7 +293,7 @@ class HUD(object):
             'Client:  % 16d FPS' % clock.get_fps(),
             '',
             'Vehicle: % 20s' % get_actor_display_name(world.vehicle, truncate=20),
-            'Map:     % 20s' % world.world.map_name,
+            'Map:     % 20s' % "world.world.map_name", # TODO: world.world.get_map().name in 0.9.11 but the call is costly
             'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
             '',
             'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
@@ -478,7 +478,7 @@ class LaneInvasionSensor(object):
         self._parent = parent_actor
         self._hud = hud
         world = self._parent.get_world()
-        bp = world.get_blueprint_library().find('sensor.other.lane_detector')
+        bp = world.get_blueprint_library().find('sensor.other.lane_invasion')
         self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.

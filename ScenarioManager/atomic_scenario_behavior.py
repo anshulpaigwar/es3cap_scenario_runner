@@ -756,8 +756,6 @@ class SteerVehicle(AtomicBehavior):
         return new_status
 
 
-
-
 class StopVehicleForTime(AtomicBehavior):
 
     """
