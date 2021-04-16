@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<scenarios>
+
+    <scenario name="PedestrianCrossingRedLight" type="PedestrianCrossingRedLight" town="Town03">
+        <ego_vehicle x="-3.5" y="-157" z="1" yaw="90" model="vehicle.mercedesccc.mercedesccc" />
+        <other_actor x="-3.5" y="-150" z="1" yaw="90" model="vehicle.volkswagen.t2" />
+        <other_actor x="-13.3" y="-133" z="1" yaw="0" model="vehicle.tesla.model3" />
+        <other_actor x="7" y="-133" z="1" yaw="180" model="walker.pedestrian.0002" />
+    </scenario>
+</scenarios>

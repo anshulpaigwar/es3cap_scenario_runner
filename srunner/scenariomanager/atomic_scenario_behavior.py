@@ -138,7 +138,7 @@ class InTriggerDistanceToVehicle(AtomicBehavior):
     of a scenario
     """
 
-    def __init__(self, other_actor, actor, distance, name="TriggerDistanceToVehicle"):
+    def __init__(self, other_actor, actor, distance, greater_than_distance=False, name="TriggerDistanceToVehicle"):
         """
         Setup trigger distance
         """
@@ -147,7 +147,7 @@ class InTriggerDistanceToVehicle(AtomicBehavior):
         self._other_actor = other_actor
         self._actor = actor
         self._distance = distance
-
+        self._greater_than_distance = greater_than_distance
     def update(self):
         """
         Check if the ego vehicle is within trigger distance to other actor
@@ -160,8 +160,12 @@ class InTriggerDistanceToVehicle(AtomicBehavior):
         if ego_location is None or other_location is None:
             return new_status
 
-        if calculate_distance(ego_location, other_location) < self._distance:
-            new_status = py_trees.common.Status.SUCCESS
+        if self._greater_than_distance:
+            if calculate_distance(ego_location, other_location) > self._distance:
+                new_status = py_trees.common.Status.SUCCESS
+        else:
+            if calculate_distance(ego_location, other_location) < self._distance:
+                new_status = py_trees.common.Status.SUCCESS
 
         self.logger.debug("%s.update()[%s->%s]" % (self.__class__.__name__, self.status, new_status))
 
@@ -950,3 +954,53 @@ class Idle(AtomicBehavior):
         new_status = py_trees.common.Status.RUNNING
 
         return new_status
+
+class ApplyWalkerControl(AtomicBehavior):
+
+    """
+    This class contains an atomic behavior to send a walker/pedestrian to location.
+
+    Note: In parallel to this behavior a termination behavior has to be used
+          to terminate this behavior after a certain duration, or after a
+          certain distance, etc.
+    """
+
+    def __init__(self, walker, control, speed=3, name="ApplyWalkerControl"):
+        """
+        Setup parameters
+        """
+        super(ApplyWalkerControl, self).__init__(name)
+        self.logger.debug("%s.__init__()" % (self.__class__.__name__))
+        self._control = control
+        self._walker = walker
+        # self._is_controller_started = False
+        # self._destination = destination
+        # self._speed = speed
+
+        
+    def update(self):
+        """
+        Activate autopilot
+        """
+        new_status = py_trees.common.Status.RUNNING
+        
+        self._walker.apply_control(self._control)
+
+        # if not self._is_controller_started:
+        #     self._controller.start()
+        #     self._is_controller_started = True
+
+
+        # self._controller.go_to_location(self._destination)
+        # self._controller.set_max_speed(self._speed)
+
+        self.logger.debug("%s.update()[%s->%s]" %
+                          (self.__class__.__name__, self.status, new_status))
+        return new_status
+
+    def terminate(self, new_status):
+        """
+        Deactivate autopilot
+        """
+        ai_controller.stop()  
+        super(ApplyWalkerControl, self).terminate(new_status)

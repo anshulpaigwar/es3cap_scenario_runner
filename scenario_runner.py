@@ -24,6 +24,7 @@ import sys
 import carla
 
 from srunner.scenarios.follow_leading_vehicle import *
+from srunner.scenarios.pedestrian_crossing import *
 from srunner.scenarios.opposite_vehicle_taking_priority import *
 from srunner.scenarios.object_crash_vehicle import *
 from srunner.scenarios.no_signal_junction_crossing import *
@@ -46,7 +47,8 @@ SCENARIOS = {
     "RunningRedLight": RUNNING_RED_LIGHT_SCENARIOS,
     "NoSignalJunction": NO_SIGNAL_JUNCTION_SCENARIOS,
     "VehicleTurning": VEHICLE_TURNING_SCENARIOS,
-    "ControlLoss": CONTROL_LOSS_SCENARIOS
+    "ControlLoss": CONTROL_LOSS_SCENARIOS,
+    "PedestrianCrossingRedLight": PEDESTRIAN_CROSSING_RED_LIGHT_SCENARIOS
 }
 
 
@@ -64,6 +66,7 @@ class ScenarioRunner(object):
 
     ego_vehicle = None
     actors = []
+    sensors = []
 
     # Tunable parameters
     client_timeout = 10.0  # in seconds
@@ -134,6 +137,13 @@ class ScenarioRunner(object):
 
         self.actors = []
 
+        for i, _ in enumerate(self.sensors):
+            if self.sensors[i] is not None:
+                self.sensors[i].destroy()
+                self.sensors[i] = None
+
+        self.sensors = []
+
         if ego and self.ego_vehicle is not None:
             self.ego_vehicle.destroy()
             self.ego_vehicle = None
@@ -145,7 +155,7 @@ class ScenarioRunner(object):
         """
 
         blueprint_library = self.world.get_blueprint_library()
-
+        
         # Get vehicle by model
         blueprint = random.choice(blueprint_library.filter(model))
         if hero:
@@ -157,10 +167,11 @@ class ScenarioRunner(object):
 
         if vehicle is None:
             raise Exception(
-                "Error: Unable to spawn vehicle {} at {}".format(model, spawn_point))
+                "Error: Unable to spawn actor {} at {}".format(model, spawn_point))
         else:
             # Let's deactivate the autopilot of the vehicle
-            vehicle.set_autopilot(False)
+            if model.startswith("vehicle"):
+                vehicle.set_autopilot(False)
 
         return vehicle
 
@@ -181,6 +192,61 @@ class ScenarioRunner(object):
         for actor in config.other_actors:
             new_actor = self.setup_vehicle(actor.model, actor.transform)
             self.actors.append(new_actor)
+
+    def setup_sensor(self, sensor_type, transform, vehicle):
+        """
+        Function to setup the sensor suit.
+        """
+        blueprint_library = self.world.get_blueprint_library()
+
+        if sensor_type == "lidar":
+            # add sensors
+            lidar_bp = blueprint_library.find('sensor.lidar.ray_cast')
+            lidar_bp.set_attribute('rotation_frequency', '10')
+            lidar_bp.set_attribute('channels', '32')
+            lidar_bp.set_attribute('range', '5000')
+            lidar_bp.set_attribute('points_per_second', '422000')
+            lidar_bp.set_attribute('upper_fov', '2')
+            lidar_bp.set_attribute('lower_fov', '-24.8')
+            lidar = self.world.spawn_actor(lidar_bp, transform, attach_to=vehicle)
+            print('created %s' % lidar.type_id)
+            return lidar
+        if sensor_type == "camera.rgb":
+            camera_bp = blueprint_library.find('sensor.camera.rgb')
+            camera_bp.set_attribute('image_size_x', '1280')
+            camera_bp.set_attribute('image_size_y', '720')
+            camera_bp.set_attribute('fov', '110')
+            camera_rgb = self.world.spawn_actor(camera_bp, transform, attach_to=vehicle)
+            return camera_rgb
+        else:
+            sys.exit(
+                "Error: Unable to spawn sensor {}".format(sensor_type))
+
+
+    def prepare_sensors(self, config):
+        """
+        Spawn or update all sensors according to
+        their parameters provided in config
+        """
+        _lidar_location = carla.Transform(
+            carla.Location(x=0, y=0, z=2.32),carla.Rotation(roll=0.74484513, pitch=0.85943669))
+
+        _camera_location = carla.Transform(
+            carla.Location(x= -4, y=0, z=3.5), carla.Rotation(pitch=-15))
+
+
+
+        lidar_sensor = self.setup_sensor(
+            "lidar",
+            _lidar_location,
+            self.ego_vehicle)
+        self.sensors.append(lidar_sensor)
+
+        camera_rgb_sensor = self.setup_sensor(
+            "camera.rgb",
+            _camera_location,
+            self.ego_vehicle)
+
 
     def analyze_scenario(self, args, config):
         """
@@ -227,6 +293,8 @@ class ScenarioRunner(object):
                 scenario_class = ScenarioRunner.get_scenario_class_or_fail(config.type)
                 try:
                     self.prepare_actors(config)
+                    self.prepare_sensors(config)
+
                     scenario = scenario_class(self.world,
                                               self.ego_vehicle,
                                               self.actors,
