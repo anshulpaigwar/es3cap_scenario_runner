@@ -14,6 +14,7 @@ etc.
 The atomic behaviors are implemented with py_trees.
 """
 
+import datetime
 import carla
 import py_trees
 
@@ -955,52 +956,35 @@ class Idle(AtomicBehavior):
 
         return new_status
 
-class ApplyWalkerControl(AtomicBehavior):
+
+class IDLE(AtomicBehavior):
 
     """
-    This class contains an atomic behavior to send a walker/pedestrian to location.
-
-    Note: In parallel to this behavior a termination behavior has to be used
-          to terminate this behavior after a certain duration, or after a
-          certain distance, etc.
+    This class contains an atomic behavior to do nothing for a given amount of seconds.
     """
 
-    def __init__(self, walker, control, speed=3, name="ApplyWalkerControl"):
+    def __init__(self, duration, name="IDLE"):
         """
         Setup parameters
         """
-        super(ApplyWalkerControl, self).__init__(name)
+        super(IDLE, self).__init__(name)
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
-        self._control = control
-        self._walker = walker
-        # self._is_controller_started = False
-        # self._destination = destination
-        # self._speed = speed
+        self._duration = duration
+        self._start_time = None
 
-        
+    def initialise(self):
+        self._start_time = datetime.datetime.now()
+        super(IDLE, self).initialise()
+
     def update(self):
         """
         Activate autopilot
         """
         new_status = py_trees.common.Status.RUNNING
-        
-        self._walker.apply_control(self._control)
-
-        # if not self._is_controller_started:
-        #     self._controller.start()
-        #     self._is_controller_started = True
-
-
-        # self._controller.go_to_location(self._destination)
-        # self._controller.set_max_speed(self._speed)
+        delta = datetime.datetime.now() - self._start_time
+        if delta.total_seconds() > self._duration:
+            new_status = py_trees.common.Status.SUCCESS
 
         self.logger.debug("%s.update()[%s->%s]" %
                           (self.__class__.__name__, self.status, new_status))
         return new_status
-
-    def terminate(self, new_status):
-        """
-        Deactivate autopilot
-        """
-        ai_controller.stop()  
-        super(ApplyWalkerControl, self).terminate(new_status)
