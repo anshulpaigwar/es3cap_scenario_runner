@@ -450,7 +450,7 @@ class KeepVelocity(AtomicBehavior):
         new_status = py_trees.common.Status.RUNNING
 
         if CarlaDataProvider.get_velocity(self._actor) < self._target_velocity:
-            self._control.throttle = 1.0
+            self._control.throttle = 0.3
         else:
             self._control.throttle = 0.0
 
