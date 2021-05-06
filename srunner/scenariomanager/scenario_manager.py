@@ -169,7 +169,7 @@ class ScenarioManager(object):
         self._running = True
 
         while self._running:
-            time.sleep(0.5)
+            time.sleep(0.1)
 
         self.end_system_time = time.time()
         end_game_time = GameTime.get_time()

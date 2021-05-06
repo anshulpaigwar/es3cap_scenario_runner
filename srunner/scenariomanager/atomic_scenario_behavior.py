@@ -14,7 +14,7 @@ etc.
 The atomic behaviors are implemented with py_trees.
 """
 
-import datetime
+from datetime import datetime
 import carla
 import py_trees
 
@@ -541,8 +541,169 @@ class KeepVelocityPID(AtomicBehavior):
 
 
 
+class KeepSharedVelocityPID(AtomicBehavior):
+
+    """
+    This class contains an atomic behavior to keep the provided velocity.
+    The controlled traffic participant will accelerate as fast as possible
+    until reaching a given _target_velocity_, which is then maintained for
+    as long as this behavior is active.
+
+    Note: In parallel to this behavior a termination behavior has to be used
+          to keep the velocity either for a certain duration, or for a certain
+          distance, etc.
+    """
+
+    def __init__(self, vehicle, vehicle_name, shared_ressources, name="KeepVelocity"):
+        """
+        Setup parameters including acceleration value (via throttle_value)
+        and target velocity
+        """
+        super(KeepSharedVelocityPID, self).__init__(name)
+        self.logger.debug("%s.__init__()" % (self.__class__.__name__))
+        self._control = carla.VehicleControl()
+        self._vehicle = vehicle
+        self._vehicle_name = vehicle_name
+        self._shared_ressources = shared_ressources
+        self._last_error = 0
+        self._i_error = 0
+        self._dt = 0.7#0.05
+        self.k_p = 0.3 #0.5
+        self.k_d = 0.08#0.03
+        self.k_i = 0.000#0.01
+
+        self._control.steering = 0
+
+    def update(self):
+        """
+        Set throttle to throttle_value, as long as velocity is < target_velocity
+        """
+        new_status = py_trees.common.Status.RUNNING
+
+        current_vel = CarlaDataProvider.get_velocity(self._vehicle)
+        print(self._shared_ressources.speeds)
+        current_error = self._shared_ressources.speeds[self._vehicle_name] - current_vel
+        d_error = current_error - self._last_error
+        self._i_error = self._i_error + current_error
+
+        controller_output = self.k_p * current_error + self.k_d * d_error/self._dt +  self.k_i * self._i_error * self._dt
+
+        # print(controller_output)
+
+        if controller_output > 1:
+            controller_output = 1.0
+        if controller_output < 0:
+            controller_output = 0.0
+        self._control.throttle =  controller_output
+        self._last_error = current_error
+
+        self._vehicle.apply_control(self._control)
+        self.logger.debug("%s.update()[%s->%s]" %
+                          (self.__class__.__name__, self.status, new_status))
+        return new_status
+
+    def terminate(self, new_status):
+        """
+        On termination of this behavior, the throttle remains the same, to get a smooth transition
+        """
+        super(KeepSharedVelocityPID, self).terminate(new_status)
 
 
+class KeepSharedVelocity_pedestrian(AtomicBehavior):
+
+    def __init__(self, actor, actor_name, shared_ressources, heading, name="KeepVelocity_pedestrian"):
+        """
+        Setup parameters including acceleration value (via throttle_value)
+        and target velocity
+        """
+        super(KeepSharedVelocity_pedestrian, self).__init__(name)
+        self.logger.debug("%s.__init__()" % (self.__class__.__name__))
+        self._control = carla.WalkerControl()
+        self._shared_ressources = shared_ressources
+        self._actor = actor
+        self._actor_name = actor_name
+        self._heading = heading
+
+    def update(self):
+        """
+        Set throttle to throttle_value, as long as velocity is < target_velocity
+        """
+        new_status = py_trees.common.Status.RUNNING
+
+        self._control.speed = self._shared_ressources.speeds[self._actor_name]
+        self._control.direction = carla.Rotation(0,self._heading,0).get_forward_vector()
+        self._actor.apply_control(self._control)
+        self.logger.debug("%s.update()[%s->%s]" % (self.__class__.__name__, self.status, new_status))
+        return new_status
+
+    def terminate(self, new_status):
+        """
+        On termination of this behavior, the throttle should be set back to 0.,
+        to avoid further acceleration.
+        """
+        self._control.speed = 0
+        self._control.direction = carla.Rotation(0,self._heading,0).get_forward_vector()
+        self._actor.apply_control(self._control)
+        super(KeepSharedVelocity_pedestrian, self).terminate(new_status)
+
+
+class ComputeSpeedFactor(AtomicBehavior):
+
+    """
+    This class contains an atomic behavior to keep the provided velocity.
+    The controlled traffic participant will accelerate as fast as possible
+    until reaching a given _target_velocity_, which is then maintained for
+    as long as this behavior is active.
+
+    Note: In parallel to this behavior a termination behavior has to be used
+          to keep the velocity either for a certain duration, or for a certain
+          distance, etc.
+    """
+
+    def __init__(self, actors, shared_ressources, name="KeepVelocity"):
+        """
+        Setup parameters including acceleration value (via throttle_value)
+        and target velocity
+        """
+        super(ComputeSpeedFactor, self).__init__(name)
+        self.logger.debug("%s.__init__()" % (self.__class__.__name__))
+        self._actors = actors
+        self._shared_ressources = shared_ressources
+
+    def update(self):
+        """
+        Set throttle to throttle_value, as long as velocity is < target_velocity
+        """
+        new_status = py_trees.common.Status.RUNNING
+
+        distances = {}
+        eta_max = 0 # TODO: improve arbritrary value, manage if distance too small
+        name_max = ""
+        for actor_data in self._actors:
+            d = actor_data["actor"].get_location().distance(actor_data["dest"])
+            eta = d / actor_data["vmax"]
+            distances[actor_data["name"]] = d
+            print("eta: {}".format(eta))
+            print("distance: {}".format(d))
+            if eta > eta_max:
+                eta_max = eta
+                name_max = actor_data["name"]
+        
+
+        for name, distance in distances.iteritems():
+            self._shared_ressources.speeds[name] = distance / eta_max
+        print("distances: {}".format(distances))
+        print("speeds:    {}".format(self._shared_ressources.speeds))
+        
+        self.logger.debug("%s.update()[%s->%s]" %
+                          (self.__class__.__name__, self.status, new_status))
+        return new_status
+
+    def terminate(self, new_status):
+        """
+        On termination of this behavior, the throttle remains the same, to get a smooth transition
+        """
+        super(ComputeSpeedFactor, self).terminate(new_status)
 
 
 
@@ -628,17 +789,6 @@ class KeepVelocity_pedestrian(AtomicBehavior):
         self._control.direction = carla.Rotation(0,self.heading,0).get_forward_vector()
         self._actor.apply_control(self._control)
         super(KeepVelocity_pedestrian, self).terminate(new_status)
-
-
-
-
-
-
-
-
-
-
-
 
 
 class DriveDistance(AtomicBehavior):
@@ -973,7 +1123,7 @@ class IDLE(AtomicBehavior):
         self._start_time = None
 
     def initialise(self):
-        self._start_time = datetime.datetime.now()
+        self._start_time = datetime.now()
         super(IDLE, self).initialise()
 
     def update(self):
@@ -981,7 +1131,7 @@ class IDLE(AtomicBehavior):
         Activate autopilot
         """
         new_status = py_trees.common.Status.RUNNING
-        delta = datetime.datetime.now() - self._start_time
+        delta = datetime.now() - self._start_time
         if delta.total_seconds() > self._duration:
             new_status = py_trees.common.Status.SUCCESS
 

@@ -297,12 +297,22 @@ class ScenarioRunner(object):
                     self.prepare_actors(config)
                     self.prepare_sensors(config)
 
-                    scenario = scenario_class(self.world,
-                                              self.ego_vehicle,
-                                              self.actors,
-                                              config.town,
-                                              args.randomize,
-                                              args.debug)
+                    if ARGUMENTS.sequence:
+                        scenario = scenario_class(self.world, 
+                                                  self.ego_vehicle,
+                                                  self.actors,
+                                                  config.town,
+                                                  args.randomize,
+                                                  args.debug,
+                                                  sequence=args.sequence)
+                    else:
+                        scenario = scenario_class(self.world,
+                                                  self.ego_vehicle,
+                                                  self.actors,
+                                                  config.town,
+                                                  args.randomize,
+                                                  args.debug)
+
                 except Exception as exception:
                     print("The scenario cannot be loaded")
                     traceback.print_exc()
@@ -350,6 +360,7 @@ if __name__ == '__main__':
     PARSER.add_argument('--list', action="store_true", help='List all supported scenarios and exit')
     PARSER.add_argument('--list_class', action="store_true", help='List all supported scenario classes and exit')
     PARSER.add_argument('-v', '--version', action='version', version='%(prog)s ' + str(VERSION))
+    PARSER.add_argument('--sequence', action='store', type=str, default="")
     ARGUMENTS = PARSER.parse_args()
 
     if ARGUMENTS.list:
