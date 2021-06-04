@@ -4,21 +4,24 @@
            "name":"ego",
            "start_location":{
                "x":6,
-               "y":10
+               "y":10,
+               "yaw": 90
            }
        },
        {
            "name":"leading",
            "start_location":{
                "x":6,
-               "y":7
+               "y":7,
+               "yaw": 90
            }
        },
        {
            "name":"walker",
            "start_location":{
                "x":2,
-               "y":3
+               "y":3,
+               "yaw": 180
            }
        }
    ],

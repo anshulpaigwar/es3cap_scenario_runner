@@ -30,10 +30,10 @@ class PedestrianCrossingRedLight(BasicScenario):
 
     """
     This class holds everything required for a scenario,
-    in which a pedestrian cross the road at red pedestrian light
-    after an other vehicule passed the intersection (while the ego
-    vehicle has green)
-
+    in which a pedestrian cross the road while the car traffic light is green
+    The pedestrian tries to cross between the leading and the ego vehicle
+    The result is a collision between the ego vehicle and the pedestrian
+    The actors wait for the traffic light to turn green
     Location: Town03
     """
 

@@ -1,0 +1,252 @@
+{
+    "actors": [
+        {
+            "name": "ego",
+            "start_location": {
+                "x": 6,
+                "y": 10,
+                "yaw": 90
+            }
+        },
+        {
+            "name": "leading",
+            "start_location": {
+                "x": 6,
+                "y": 7,
+                "yaw": 90
+            }
+        },
+        {
+            "name": "walker",
+            "start_location": {
+                "x": 2,
+                "y": 3,
+                "yaw": 180
+            }
+        }
+    ],
+    "sequence": [
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 9
+            }
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 6
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "idle"
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 5
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "idle"
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 4
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "idle"
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 3
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 8
+            }
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 2
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 7
+            }
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 1
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "move",
+            "next_location": {
+                "x": 3,
+                "y": 3
+            }
+        },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 6
+            }
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 0
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "move",
+            "next_location": {
+                "x": 4,
+                "y": 3
+            }
+        },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 5
+            }
+        },
+        {
+            "actor": "leading",
+            "action": "idle"
+        },
+        {
+            "actor": "walker",
+            "action": "move",
+            "next_location": {
+                "x": 5,
+                "y": 3
+            }
+        },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 4
+            }
+        },
+        {
+            "actor": "leading",
+            "action": "idle"
+        },
+        {
+            "actor": "walker",
+            "action": "move",
+            "next_location": {
+                "x": 5,
+                "y": 3
+            }
+        },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 3
+            }
+        },
+        {
+            "actor": "leading",
+            "action": "idle"
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "action": "tick"
+        }
+    ]
+}

@@ -590,8 +590,8 @@ class KeepSharedVelocityPID(AtomicBehavior):
 
         # print(controller_output)
 
-        if controller_output > 1:
-            controller_output = 1.0
+        if controller_output > 0.5:
+            controller_output = 0.5
         if controller_output < 0:
             controller_output = 0.0
         self._control.throttle =  controller_output
@@ -606,6 +606,9 @@ class KeepSharedVelocityPID(AtomicBehavior):
         """
         On termination of this behavior, the throttle remains the same, to get a smooth transition
         """
+        self._control.throttle =  0
+        self._control.brake = 1
+        self._vehicle.apply_control(self._control)
         super(KeepSharedVelocityPID, self).terminate(new_status)
 
 
@@ -1061,9 +1064,8 @@ class BasicAgentBehavior(AtomicBehavior):
         """
         super(BasicAgentBehavior, self).__init__(name)
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
-        self._agent = BasicAgent(actor,target_speed = 17)
+        self._agent = BasicAgent(actor,target_speed = 8)
         self._agent.set_destination((target_location.x, target_location.y, target_location.z))
-        self._control = carla.VehicleControl()
         self._actor = actor
         self._target_location = target_location
 
@@ -1073,8 +1075,13 @@ class BasicAgentBehavior(AtomicBehavior):
         self._control = self._agent.run_step()
 
         location = CarlaDataProvider.get_location(self._actor)
-        if calculate_distance(location, self._target_location) < self._acceptable_target_distance:
+        print(self.name, str(location), "->", str(self._target_location))
+        # if calculate_distance(location, self._target_location) < self._acceptable_target_distance:
+        if self._agent.done():
             new_status = py_trees.common.Status.SUCCESS
+            self._control.throttle = 0.0
+            self._control.brake = 0.0
+
 
         self.logger.debug("%s.update()[%s->%s]" % (self.__class__.__name__, self.status, new_status))
         self._actor.apply_control(self._control)
@@ -1082,6 +1089,7 @@ class BasicAgentBehavior(AtomicBehavior):
         return new_status
 
     def terminate(self, new_status):
+        self._control = carla.VehicleControl()
         self._control.throttle = 0.0
         self._control.brake = 0.0
         self._actor.apply_control(self._control)
@@ -1138,3 +1146,31 @@ class IDLE(AtomicBehavior):
         self.logger.debug("%s.update()[%s->%s]" %
                           (self.__class__.__name__, self.status, new_status))
         return new_status
+
+
+class DebugBehaviour(AtomicBehavior):
+    """
+    This class contains an atomic behavior to do nothing for a given amount of seconds.
+    """
+
+    def __init__(self, world_debug, loc_list, name="DebugBehaviour"):
+        """
+        Setup parameters
+        """
+        super(DebugBehaviour, self).__init__(name)
+        self.logger.debug("%s.__init__()" % (self.__class__.__name__))
+        self._loc_list = loc_list
+        self._world_debug = world_debug
+
+    def update(self):
+        """
+        Activate autopilot
+        """
+        new_status = py_trees.common.Status.RUNNING
+        for e in self._loc_list:
+            self._world_debug.draw_point(e, size=0.1, color=carla.Color(r=0, g=255, b=0, a=125), life_time=0.1)
+
+        self.logger.debug("%s.update()[%s->%s]" %
+                          (self.__class__.__name__, self.status, new_status))
+        return new_status
+
