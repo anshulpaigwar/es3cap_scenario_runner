@@ -107,9 +107,10 @@ class ScenarioRunner(object):
         Cleanup and delete actors, ScenarioManager and CARLA world
         """
 
-        self.cleanup(True)
         if self.manager is not None:
             del self.manager
+        self.world.tick()
+        self.cleanup(True)
         if self.world is not None:
             del self.world
 
@@ -151,6 +152,7 @@ class ScenarioRunner(object):
         if ego and self.ego_vehicle is not None:
             self.ego_vehicle.destroy()
             self.ego_vehicle = None
+        self.world.tick()
 
     def setup_vehicle(self, model, spawn_point, hero=False):
         """
@@ -392,8 +394,10 @@ if __name__ == '__main__':
         PARSER.print_help(sys.stdout)
         sys.exit(0)
 
+    SCENARIORUNNER = None
     try:
         SCENARIORUNNER = ScenarioRunner(ARGUMENTS)
         SCENARIORUNNER.run(ARGUMENTS)
     finally:
+        print("del????")
         del SCENARIORUNNER

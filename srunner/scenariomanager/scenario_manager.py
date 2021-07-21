@@ -44,7 +44,6 @@ class Scenario(object):
         self.behavior = behavior
         self.test_criteria = criteria
         self.timeout = timeout
-
         if not isinstance(self.test_criteria, py_trees.composites.Parallel):
         # list of nodes
             for criterion in self.test_criteria:
@@ -126,8 +125,16 @@ class ScenarioManager(object):
         self.scenario_duration_game = 0.0
         self.start_system_time = None
         self.end_system_time = None
-
-        world.on_tick(self._tick_scenario)
+        self._world = world
+        self._tick_scenario_id = world.on_tick(self._tick_scenario)
+    
+    def __del__(self):
+        print("del?")
+        settings = self._world.get_settings()
+        settings.synchronous_mode = False
+        self._world.apply_settings(settings)
+        self._world.remove_on_tick(self._tick_scenario_id)
+        self._world.tick()
 
     def load_scenario(self, scenario):
         """
@@ -166,21 +173,38 @@ class ScenarioManager(object):
         self.start_system_time = time.time()
         start_game_time = GameTime.get_time()
 
+        settings = self._world.get_settings()
+        settings.fixed_delta_seconds = 0.01
+        settings.synchronous_mode = True
+        self._world.apply_settings(settings)
+
+
         self._running = True
 
-        while self._running:
-            time.sleep(0.1)
+        try:
+            while self._running:
+                self._world.tick()
 
-        self.end_system_time = time.time()
-        end_game_time = GameTime.get_time()
+            self.end_system_time = time.time()
+            end_game_time = GameTime.get_time()
 
-        self.scenario_duration_system = self.end_system_time - \
-            self.start_system_time
-        self.scenario_duration_game = end_game_time - start_game_time
+            self.scenario_duration_system = self.end_system_time - \
+                self.start_system_time
+            self.scenario_duration_game = end_game_time - start_game_time
 
-        if self.scenario_tree.status == py_trees.common.Status.FAILURE:
-            print("ScenarioManager: Terminated due to failure")
-
+            if self.scenario_tree.status == py_trees.common.Status.FAILURE:
+                print("ScenarioManager: Terminated due to failure")
+        except Exception as e:
+            settings = self._world.get_settings()
+            settings.synchronous_mode = False
+            self._world.apply_settings(settings)
+            self._world.tick()
+            raise e
+        finally:                
+            settings = self._world.get_settings()
+            settings.synchronous_mode = False
+            self._world.apply_settings(settings)
+            self._world.tick()
     def _tick_scenario(self, timestamp):
         """
         Run next tick of scenario

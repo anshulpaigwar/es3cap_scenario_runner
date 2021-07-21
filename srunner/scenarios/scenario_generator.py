@@ -74,7 +74,7 @@ class SequenceStep(object):
         self.required_by = dict_step["required_by"] if "required_by" in dict_step else 1
         self.action = dict_step["action"]
         if self.actor == "walker": # TODO: Harcoded
-            self.loc = point_tf_to_carla(dict_step["next_location"]["x"], dict_step["next_location"]["y"], scale=2.5)
+            self.loc = point_tf_to_carla(dict_step["next_location"]["x"], dict_step["next_location"]["y"], scale=2.4)
         else:
             self.loc = point_tf_to_carla(dict_step["next_location"]["x"], dict_step["next_location"]["y"])
 
@@ -211,10 +211,10 @@ class ScenarioGenerator(BasicScenario):
 
     _cell_distance = 5 # meters
     _cell_distance_walker = 2.5 # meters
-    _vehicle_speed = 5
-    _walker_speed = 0.5
-    _distance_to_location = 2
-    _distance_to_location_walker = 0.3
+    _vehicle_speed = 20
+    _walker_speed = 2
+    _distance_to_location = 0.5
+    _distance_to_location_walker = 0.5
     _cross_start_distance = 10
    
     _intersection_location = carla.Location(x=-3.5, y=-150, z=0)
@@ -304,7 +304,7 @@ class ScenarioGenerator(BasicScenario):
         self.leading_vehicle.set_transform(leading_vehicle_start)
 
         x, y, yaw = self.sequence.get_initial_pose("walker")
-        walker_vehicle_start = carla.Transform(point_tf_to_carla(x, y, scale=2.5), carla.Rotation(yaw=yaw+1.5))
+        walker_vehicle_start = carla.Transform(point_tf_to_carla(x, y, scale=2.4), carla.Rotation(yaw=yaw+1.5))
         self.walker.set_transform(walker_vehicle_start)
         self.walk_orientation = yaw
         print("yaw", self.walk_orientation)
@@ -388,18 +388,63 @@ class ScenarioGenerator(BasicScenario):
     Second method, the behaviour tree is a sequence of parallel actions, at each step of the sequence several actors may be moving at the same time
     All actions of step must be accomplished before going to the next step and velocities are not synchronised so the fastest actor may be stopped, waiting for others to finish their action
     """
-    def _create_simple_parallelized_behavior(self):
-        behaviour_tree = py_trees.composites.Sequence("Sequence Behavior")
+    class AutoPilot_LocalPlanner(object):
+        class _Agent(object):
+            def __init__(self, vehicle):
+                self.vehicle = vehicle
+                
+        class _Waypoint(object):
+            def __init__(self):
+                self.transform = carla.Transform()
+            
+        def __init__(self, vehicle, target_speed):
+            self.local_planner = LocalPlanner(self._Agent(vehicle))
+            self._vehicle = vehicle
+            self.target_speed = target_speed
+            
+        """Set AutoPilot_LocalPlanner destination: carla.Location"""
+        def set_destination(self, destination):
+            self._destination = destination
+            self.wp = self._Waypoint()
+            self.wp.transform.location = destination
+            self.local_planner._waypoint_buffer.clear()
+            self.local_planner.waypoints_queue.clear()
         
+        def set_speed(self, target_speed):
+            self.target_speed = target_speed
+
+        def tick(self, debug=False):
+            self.local_planner.set_global_plan([(self.wp, RoadOption.VOID)])
+            control = self.local_planner.run_step(self.target_speed, True)
+            self._vehicle.apply_control(control)
+
+        def distance(self):
+            loc = self._vehicle.get_location()
+            loc.z = self._destination.z
+            return self._destination.distance(loc)
+
+        def brake(self, brake_value=1):
+            control = carla.VehicleControl()
+            control.brake = brake_value
+            self._vehicle.apply_control(control)
+
+        def done(self):
+           return self.distance() < 1
+
+    def _create_auto_pilot_behavior(self):
+        behaviour_tree = py_trees.composites.Sequence("Sequence Behavior")
+        self.ego_agent = self.AutoPilot_LocalPlanner(self.ego_vehicle, self._vehicle_speed)
+        self.leading_agent = self.AutoPilot_LocalPlanner(self.leading_vehicle, self._vehicle_speed)
+
         for i, steps in enumerate(self.sequence.sequence):
             state = py_trees.composites.Parallel("State {}".format(i), policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ALL)
             for step in steps:
                 # TODO: hard coded vehicle selection
                 if step.actor == "ego":
-                    state.add_child(BasicAgentBehavior(self.ego_vehicle, step.loc, "ego_{}".format(i)))
+                    state.add_child(LocalPlannerBehaviour(self.ego_agent, step.loc, "ego_{}".format(i)))
                     # state.add_child(self._create_node_drive_distance(self.ego_vehicle, self._cell_distance, self._vehicle_speed, "Ego vehicle"))
                 elif step.actor == "leading":
-                    state.add_child(BasicAgentBehavior(self.leading_vehicle, step.loc, "leading_{}".format(i)))
+                    state.add_child(LocalPlannerBehaviour(self.leading_agent, step.loc, "leading_{}".format(i)))
                     # state.add_child(self._create_node_drive_distance(self.leading_vehicle, self._cell_distance, self._vehicle_speed, "Leading vehicle"))
                 elif step.actor == "walker":
                     state.add_child(self._create_node_walk_distance(self.walker, self._cell_distance_walker, self._walker_speed))
@@ -475,11 +520,11 @@ class ScenarioGenerator(BasicScenario):
 
 
         # behaviour_tree = self._create_synchronized_parallelized_behavior()
-        behaviour_tree = self._create_simple_parallelized_behavior()
+        behaviour_tree = self._create_auto_pilot_behavior()
         behaviour_tree_with_debug = py_trees.composites.Parallel("Behaviour tree", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
         behaviour_tree_with_debug.add_child(behaviour_tree)
         loc_list = [step.loc for steps in self.sequence.sequence for step in steps ]
-        behaviour_tree_with_debug.add_child(DebugBehaviour(self.world_debug, loc_list))
+        # behaviour_tree_with_debug.add_child(DebugBehaviour(self.world_debug, loc_list))
         return behaviour_tree_with_debug
 
     def _create_test_criteria(self):

@@ -20,6 +20,7 @@ import py_trees
 
 from agents.navigation.roaming_agent import *
 from agents.navigation.basic_agent import *
+from agents.navigation.local_planner_behavior import LocalPlanner, RoadOption
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -186,7 +187,10 @@ class InTriggerDistanceToLocation(AtomicBehavior):
         """
         super(InTriggerDistanceToLocation, self).__init__(name)
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
-        self._target_location = target_location
+        self._target_location = carla.Location()
+        self._target_location.x = target_location.x
+        self._target_location.y = target_location.y
+        self._target_location.z = 0
         self._actor = actor
         self._distance = distance
 
@@ -200,6 +204,7 @@ class InTriggerDistanceToLocation(AtomicBehavior):
 
         if location is None:
             return new_status
+        location.z = 0
 
         if calculate_distance(
                 location, self._target_location) < self._distance:
@@ -581,7 +586,7 @@ class KeepSharedVelocityPID(AtomicBehavior):
         new_status = py_trees.common.Status.RUNNING
 
         current_vel = CarlaDataProvider.get_velocity(self._vehicle)
-        print(self._shared_ressources.speeds)
+        # print(self._shared_ressources.speeds)
         current_error = self._shared_ressources.speeds[self._vehicle_name] - current_vel
         d_error = current_error - self._last_error
         self._i_error = self._i_error + current_error
@@ -679,15 +684,21 @@ class ComputeSpeedFactor(AtomicBehavior):
         """
         new_status = py_trees.common.Status.RUNNING
 
+        etas = {}
         distances = {}
         eta_max = 0 # TODO: improve arbritrary value, manage if distance too small
         name_max = ""
         for actor_data in self._actors:
-            d = actor_data["actor"].get_location().distance(actor_data["dest"])
+            l1 = actor_data["actor"].get_location()
+            l1.z = 0
+            l2 = actor_data["dest"]
+            l2.z = 0
+            d = l1.distance(l2)
             eta = d / actor_data["vmax"]
             distances[actor_data["name"]] = d
-            print("eta: {}".format(eta))
-            print("distance: {}".format(d))
+            etas[actor_data["name"]] = eta
+            # print("eta: {}".format(eta))
+            # print("distance: {}".format(d))
             if eta > eta_max:
                 eta_max = eta
                 name_max = actor_data["name"]
@@ -696,6 +707,7 @@ class ComputeSpeedFactor(AtomicBehavior):
         for name, distance in distances.iteritems():
             self._shared_ressources.speeds[name] = distance / eta_max
         print("distances: {}".format(distances))
+        print("etas: {}".format(etas))
         print("speeds:    {}".format(self._shared_ressources.speeds))
         
         self.logger.debug("%s.update()[%s->%s]" %
@@ -1173,4 +1185,48 @@ class DebugBehaviour(AtomicBehavior):
         self.logger.debug("%s.update()[%s->%s]" %
                           (self.__class__.__name__, self.status, new_status))
         return new_status
+
+
+
+class LocalPlannerBehaviour(AtomicBehavior):
+
+    """
+    This class contains an atomic behavior, which uses the
+    local planner from CARLA to control the actor until
+    reaching a target location.
+    """
+
+    _acceptable_target_distance = 0.5
+
+    def __init__(self, agent, target_location, name="LocalPlannerBehaviour"):
+        """
+        Setup actor and maximum steer value
+        """
+        super(LocalPlannerBehaviour, self).__init__(name)
+        self.logger.debug("%s.__init__()" % (self.__class__.__name__))
+        self._agent = agent
+        self._target_location = target_location
+
+    def initialise(self):
+        self._agent.set_destination(self._target_location)
+        super(LocalPlannerBehaviour, self).initialise()
+
+    def update(self):
+        new_status = py_trees.common.Status.RUNNING
+        # location = CarlaDataProvider.get_location(self._actor)
+        # print(self.name, str(location), "->", str(self._target_location))
+        # if calculate_distance(location, self._target_location) < self._acceptable_target_distance:
+        if self._agent.done():
+            new_status = py_trees.common.Status.SUCCESS
+            self._agent.brake(brake_value=1)
+        else:
+            self._agent.tick(debug=False)
+
+        self.logger.debug("%s.update()[%s->%s]" % (self.__class__.__name__, self.status, new_status))
+        return new_status
+
+    def terminate(self, new_status):
+        self._agent.brake(brake_value=1)
+        super(LocalPlannerBehaviour, self).terminate(new_status)
+
 
