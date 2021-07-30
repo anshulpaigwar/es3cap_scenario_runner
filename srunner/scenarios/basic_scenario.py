@@ -95,3 +95,6 @@ class BasicScenario(object):
             print("The CARLA server uses the wrong map!")
             print("This scenario requires to use map {}".format(self._town))
             raise Exception("The CARLA server uses the wrong map!")
+
+    def __del__(self):
+        print("del")

@@ -1,0 +1,237 @@
+{
+    "actors": [
+        {
+            "name": "ego",
+            "start_location": {
+                "x": 0,
+                "y": 5,
+                "yaw": 180
+            }
+        },
+        {
+            "name": "walker",
+            "start_location": {
+                "x": 7,
+                "y": 1,
+                "yaw": -90
+            }
+        },
+        {
+            "name": "leading",
+            "start_location": {
+                "x": 2,
+                "y": 5,
+                "yaw": 180
+            }
+        }
+    ],
+    "sequence": [
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 0,
+                "y": 5
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 3,
+                "y": 5
+            }
+          },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "idle"
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 4,
+                "y": 5
+            }
+          },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 1,
+                "y": 5
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 5,
+                "y": 5
+            }
+          },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 2,
+                "y": 5
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "idle"
+        },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 5
+            }
+          },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 3,
+                "y": 5
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "move",
+            "next_location": {
+                "x": 7,
+                "y": 2
+            }
+          },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 7,
+                "y": 5
+            }
+          },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 4,
+                "y": 5
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "move",
+            "next_location": {
+                "x": 7,
+                "y": 3
+            }
+          },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 8,
+                "y": 5
+            }
+          },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 5,
+                "y": 5
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "move",
+            "next_location": {
+                "x": 7,
+                "y": 4
+            }
+          },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 9,
+                "y": 5
+            }
+          },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 6,
+                "y": 5
+            }
+        },
+        {
+            "actor": "walker",
+            "action": "move",
+            "next_location": {
+                "x": 7,
+                "y": 5
+            }
+          },
+        {
+            "actor": "leading",
+            "action": "move",
+            "next_location": {
+                "x": 10,
+                "y": 5
+            }
+          },
+        {
+            "action": "tick"
+        },
+        {
+            "actor": "ego",
+            "action": "move",
+            "next_location": {
+                "x": 7,
+                "y": 5
+            }
+        },
+        {
+            "action": "tick"
+        }
+    ]
+}

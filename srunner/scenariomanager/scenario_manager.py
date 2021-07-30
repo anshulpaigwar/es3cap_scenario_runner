@@ -15,6 +15,7 @@ from __future__ import print_function
 import sys
 import time
 import threading
+import traceback
 
 import py_trees
 
@@ -127,8 +128,11 @@ class ScenarioManager(object):
         self.start_system_time = None
         self.end_system_time = None
 
+        # when the simulator is in synchronised with the client calling world.tick (synchronous_mode) 
+        # every on_tick is called before  world.tick returns
         world.on_tick(self._tick_scenario)
-
+        self._world = world
+        
     def load_scenario(self, scenario):
         """
         Load a new scenario
@@ -168,9 +172,32 @@ class ScenarioManager(object):
 
         self._running = True
 
-        while self._running:
-            time.sleep(0.1)
-
+        settings = self._world.get_settings()
+        settings.synchronous_mode = True
+        old_delta = settings.fixed_delta_seconds
+        settings.fixed_delta_seconds = 0.025
+        self._world.apply_settings(settings)
+        self._world.tick()
+        
+        self._running = True
+        
+        try:
+            while self._running:
+                self._world.tick()
+        except KeyboardInterrupt:
+            print("Leaving...")
+        except BaseException as be:
+            traceback.print_exc()
+            raise be
+        except:
+            print("Error: Unkonwn signal caught")
+        finally:
+            settings = self._world.get_settings()
+            settings.synchronous_mode = False
+            settings.fixed_delta_seconds = old_delta
+            self._world.apply_settings(settings)
+            self._world.tick()
+        
         self.end_system_time = time.time()
         end_game_time = GameTime.get_time()
 

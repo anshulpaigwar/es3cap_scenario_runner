@@ -49,19 +49,29 @@ def point_tf_to_carla(x, y, scale=5):
 
 
 class AutoPilot(BasicAgent):
-    def __init__(self, arg):
-        super(AutoPilot, self).__init__()
-        self.arg = arg
-    
+    def __init__(self, vehicle, target_speed):
+        super(AutoPilot, self).__init__(vehicle, target_speed)
+        
     """Set autopilot destination: carla.Location"""
     def set_destination(self, destination):
         super(AutoPilot, self).set_destination([destination.x, destination.y, destination.z])   
+        self._destination = destination
 
     def tick(self, debug=False):
-        super(AutoPilot, self).run_step(self, debug=False)
-    
-    def done(self):
-        return super(AutoPilot, self).done()
+        if self.done():
+            self.brake()
+        else:
+            control = super(AutoPilot, self).run_step(debug)
+            self._vehicle.apply_control(control)
+
+    def distance(self):
+        return self._destination.distance(self._vehicle.get_location())
+
+    def brake(self, brake_value=1):
+        control = carla.VehicleControl()
+        control.brake = brake_value
+        self._vehicle.apply_control(control)
+
         
 class SequenceStep(object):
     """
@@ -206,12 +216,12 @@ class ScenarioGenerator(BasicScenario):
 
     # moving vehicles paramters
     _expected_driven_distance = 40
-    _target_velocity = 13.9
     _security_distance = 10
 
     _cell_distance = 5 # meters
     _cell_distance_walker = 2.5 # meters
     _vehicle_speed = 5
+    _target_velocity = _vehicle_speed
     _walker_speed = 0.5
     _distance_to_location = 2
     _distance_to_location_walker = 0.3
@@ -253,6 +263,9 @@ class ScenarioGenerator(BasicScenario):
         self.leading_vehicle.apply_control(stop_control)
         # self.stopped_vehicle = other_actors[1]
         
+        self.ego_autopilot = AutoPilot(self.ego_vehicle, 30)
+        self.leading_autopilot = AutoPilot(self.leading_vehicle, 30)
+        
         self.walker = other_actors[1]
 
         self.walker_control = carla.WalkerControl()
@@ -268,22 +281,24 @@ class ScenarioGenerator(BasicScenario):
         if self._traffic_light is None:
             print("No traffic light for the given location found")
             sys.exit(-1)
-
+        self._traffic_light.set_state(carla.TrafficLightState.Green)
+        self._traffic_light.freeze(True)
+        
         testcase_args = argparse.ArgumentParser(description="Parser to retrieve the Name of the file of the test case", usage='%(prog)s [options] --test-case')
         testcase_args.add_argument('--test-case', required=True,    help='Name of the file of the test case')
         testcase_args = testcase_args.parse_known_args()[0]
         
-        if testcase_args.test_case not in ["seq1", "seq2", "seq3"]:
-            print("Unknown testcase named {}, testcase available: 'seq1', 'seq2' and 'seq3'".format(testcase_args.test_case))
+        if testcase_args.test_case not in ["seq1", "seq2", "seq3", "seq4", "seq5", "seq6"]:
+            print("Unknown testcase named {}, testcase available: 'seq1' to 'seq6'".format(testcase_args.test_case))
             sys.exit(-1)
 
         self.sequence = RawSequence("./srunner/configs/{}.json".format(testcase_args.test_case)) # TODO: hard coded file name
         
         #TODO: improve configuration
-        if testcase_args.test_case == "seq3":
+        if testcase_args.test_case in ["seq3", "seq4"]:
             collision_location = carla.Location(x=-4.5, y=-141, z=0)
             collision_coordinates = carla.Location(x=7, y=5, z=0)
-        else: # seq 1 and 2
+        else: # seq 1, 2, 5, 6
             collision_location = carla.Location(x=-4.5, y=-133, z=0)
             collision_coordinates = carla.Location(x=6, y=3, z=0)
 
@@ -384,11 +399,59 @@ class ScenarioGenerator(BasicScenario):
         sequence.add_child(IDLE(10, name="10 sec wait until terminate"))
         return sequence
 
+
+    class AutoPilot_LocalPlanner(object):
+        class _Agent(object):
+            def __init__(self, vehicle):
+                self.vehicle = vehicle
+                
+        class _Waypoint(object):
+            def __init__(self):
+                self.transform = carla.Transform()
+            
+        def __init__(self, vehicle, target_speed):
+            self.local_planner = LocalPlanner(self._Agent(vehicle))
+            self._vehicle = vehicle
+            self.target_speed = target_speed
+            
+        """Set AutoPilot_LocalPlanner destination: carla.Location"""
+        def set_destination(self, destination):
+            self._destination = destination
+            self.wp = self._Waypoint()
+            self.wp.transform.location = destination
+            self.local_planner._waypoint_buffer.clear()
+            self.local_planner.waypoints_queue.clear()
+        
+        def set_speed(self, target_speed):
+            self.target_speed = target_speed
+
+        def tick(self, debug=False):
+            self.local_planner.set_global_plan([(self.wp, RoadOption.VOID)])
+            control = self.local_planner.run_step(self.target_speed, True)
+            self._vehicle.apply_control(control)
+
+        def distance(self):
+            loc = self._vehicle.get_location()
+            loc.z = self._destination.z
+            return self._destination.distance(loc)
+
+        def brake(self, brake_value=1):
+            control = carla.VehicleControl()
+            control.brake = brake_value
+            self._vehicle.apply_control(control)
+
+        def done(self):
+           return self.distance() < 1
+
+
     """
     Second method, the behaviour tree is a sequence of parallel actions, at each step of the sequence several actors may be moving at the same time
     All actions of step must be accomplished before going to the next step and velocities are not synchronised so the fastest actor may be stopped, waiting for others to finish their action
     """
-    def _create_simple_parallelized_behavior(self):
+    def _create_auto_pilot_behavior(self):
+        behaviour_tree = py_trees.composites.Sequence("Sequence Behavior")
+        self.ego_agent = self.AutoPilot_LocalPlanner(self.ego_vehicle, self._vehicle_speed)
+        self.leading_agent = self.AutoPilot_LocalPlanner(self.leading_vehicle, self._vehicle_speed)
         behaviour_tree = py_trees.composites.Sequence("Sequence Behavior")
         
         for i, steps in enumerate(self.sequence.sequence):
@@ -396,10 +459,12 @@ class ScenarioGenerator(BasicScenario):
             for step in steps:
                 # TODO: hard coded vehicle selection
                 if step.actor == "ego":
-                    state.add_child(BasicAgentBehavior(self.ego_vehicle, step.loc, "ego_{}".format(i)))
+                    state.add_child(LocalPlannerBehaviour(self.ego_agent, step.loc, "ego_{}".format(i)))
+                    # state.add_child(BasicAgentBehavior(self.ego_vehicle, step.loc, "ego_{}".format(i)))
                     # state.add_child(self._create_node_drive_distance(self.ego_vehicle, self._cell_distance, self._vehicle_speed, "Ego vehicle"))
                 elif step.actor == "leading":
-                    state.add_child(BasicAgentBehavior(self.leading_vehicle, step.loc, "leading_{}".format(i)))
+                    state.add_child(LocalPlannerBehaviour(self.leading_agent, step.loc, "leading_{}".format(i)))
+                    # state.add_child(BasicAgentBehavior(self.leading_vehicle, step.loc, "leading_{}".format(i)))
                     # state.add_child(self._create_node_drive_distance(self.leading_vehicle, self._cell_distance, self._vehicle_speed, "Leading vehicle"))
                 elif step.actor == "walker":
                     state.add_child(self._create_node_walk_distance(self.walker, self._cell_distance_walker, self._walker_speed))
@@ -430,7 +495,7 @@ class ScenarioGenerator(BasicScenario):
         behaviour_tree = py_trees.composites.Sequence("Sequence Behavior")
         
         for i, steps in enumerate(self.sequence.sequence):
-        
+            
             apply_speed = py_trees.composites.Parallel("Apply speed to actors", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE) #TODO: maybe set to SUCCESS_ON_ONE ?
             actors_dict = []
             for step in steps:
@@ -475,12 +540,15 @@ class ScenarioGenerator(BasicScenario):
 
 
         # behaviour_tree = self._create_synchronized_parallelized_behavior()
-        behaviour_tree = self._create_simple_parallelized_behavior()
+        behaviour_tree = self._create_auto_pilot_behavior()
         behaviour_tree_with_debug = py_trees.composites.Parallel("Behaviour tree", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
         behaviour_tree_with_debug.add_child(behaviour_tree)
-        loc_list = [step.loc for steps in self.sequence.sequence for step in steps ]
+        loc_list = [step.loc if step.actor == "leading" else carla.Location() for steps in self.sequence.sequence for step in steps ]
         behaviour_tree_with_debug.add_child(DebugBehaviour(self.world_debug, loc_list))
-        return behaviour_tree_with_debug
+        for e in loc_list:
+            print(e)
+        return behaviour_tree
+        # return behaviour_tree_with_debug
 
     def _create_test_criteria(self):
         """
@@ -497,11 +565,11 @@ class ScenarioGenerator(BasicScenario):
         # criteria.append(driven_distance_criterion)
 
         velocity_criterion = AverageVelocityTest(self.leading_vehicle, self._target_velocity)
-        collision_criterion = CollisionTest(self.leading_vehicle)
-        driven_distance_criterion = DrivenDistanceTest(self.leading_vehicle, self._expected_driven_distance)
+        # collision_criterion = CollisionTest(self.leading_vehicle)
+        # driven_distance_criterion = DrivenDistanceTest(self.leading_vehicle, self._expected_driven_distance)
         criteria.append(velocity_criterion)
         # criteria.append(collision_criterion)
-        criteria.append(driven_distance_criterion)
+        # criteria.append(driven_distance_criterion)
 
         # velocity_criterion = AverageVelocityTest(self.other_vehicles[1], 0)
         # collision_criterion = CollisionTest(self.other_vehicles[1])
@@ -512,4 +580,4 @@ class ScenarioGenerator(BasicScenario):
 
     def __del__(self):
         self._traffic_light = None
-        super(ScenarioGenerator, self).__del__()
+        # super(ScenarioGenerator, self).__del__()

@@ -95,10 +95,10 @@ class ScenarioRunner(object):
         # Once we have a client we can retrieve the world that is currently
         # running.
         self.world = client.get_world()
-
+        # self.synchronous = not args.asynchronous
         # Wait for the world to be ready
         self.world.wait_for_tick(self.wait_for_world)
-
+            
         # Create scenario manager
         self.manager = ScenarioManager(self.world, args.debug)
 
@@ -134,13 +134,6 @@ class ScenarioRunner(object):
         """
 
         # We need enumerate here, otherwise the actors are not properly removed
-        for i, _ in enumerate(self.actors):
-            if self.actors[i] is not None:
-                self.actors[i].destroy()
-                self.actors[i] = None
-
-        self.actors = []
-
         for i, _ in enumerate(self.sensors):
             if self.sensors[i] is not None:
                 self.sensors[i].destroy()
@@ -148,9 +141,17 @@ class ScenarioRunner(object):
 
         self.sensors = []
 
+        for i, _ in enumerate(self.actors):
+            if self.actors[i] is not None:
+                self.actors[i].destroy()
+                self.actors[i] = None
+
+        self.actors = []
+
         if ego and self.ego_vehicle is not None:
             self.ego_vehicle.destroy()
             self.ego_vehicle = None
+        
 
     def setup_vehicle(self, model, spawn_point, hero=False):
         """
@@ -250,6 +251,7 @@ class ScenarioRunner(object):
             "camera.rgb",
             _camera_location,
             self.ego_vehicle)
+        self.sensors.append(camera_rgb_sensor)
 
         lidar_sensor = self.setup_sensor(
             "lidar",
@@ -261,7 +263,7 @@ class ScenarioRunner(object):
             "camera.rgb",
             _camera_location,
             self.actors[0])
-
+        self.sensors.append(camera_rgb_sensor)
 
     def analyze_scenario(self, args, config):
         """
@@ -375,6 +377,7 @@ if __name__ == '__main__':
     PARSER.add_argument('-v', '--version', action='version', version='%(prog)s ' + str(VERSION))
     PARSER.add_argument('--sequence', action='store', type=str, default="")
     PARSER.add_argument('--test-case', action='store', default="", help='Name of the file of the test case')
+    PARSER.add_argument('--asynchronous', action='store_true', help='Set the simulator to asynchronous mode, the defaut mode is synchronous')
     ARGUMENTS = PARSER.parse_args()
 
     if ARGUMENTS.list:
