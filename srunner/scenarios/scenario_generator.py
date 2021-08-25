@@ -32,9 +32,6 @@ collision_location = None
 collision_coordinates = None
 
 def point_tf_to_carla(x, y, scale=5):
-    # each unitary movement from the sequence is 5m in the simulator, x and y axis are inverted
-    # collision happens at -4.5, -133 in the simulator (6,3 in the sequence)
-    # TODO: hard coded collision location
     t = carla.Transform()
     t.location.x = scale*collision_coordinates.x + collision_location.x
     t.location.y = scale*collision_coordinates.y + collision_location.y
@@ -46,31 +43,6 @@ def point_tf_to_carla(x, y, scale=5):
     t.transform(location)
 
     return location
-
-
-class AutoPilot(BasicAgent):
-    def __init__(self, vehicle, target_speed):
-        super(AutoPilot, self).__init__(vehicle, target_speed)
-        
-    """Set autopilot destination: carla.Location"""
-    def set_destination(self, destination):
-        super(AutoPilot, self).set_destination([destination.x, destination.y, destination.z])   
-        self._destination = destination
-
-    def tick(self, debug=False):
-        if self.done():
-            self.brake()
-        else:
-            control = super(AutoPilot, self).run_step(debug)
-            self._vehicle.apply_control(control)
-
-    def distance(self):
-        return self._destination.distance(self._vehicle.get_location())
-
-    def brake(self, brake_value=1):
-        control = carla.VehicleControl()
-        control.brake = brake_value
-        self._vehicle.apply_control(control)
 
         
 class SequenceStep(object):
@@ -262,9 +234,6 @@ class ScenarioGenerator(BasicScenario):
         self.ego_vehicle.apply_control(stop_control)
         self.leading_vehicle.apply_control(stop_control)
         # self.stopped_vehicle = other_actors[1]
-        
-        self.ego_autopilot = AutoPilot(self.ego_vehicle, 30)
-        self.leading_autopilot = AutoPilot(self.leading_vehicle, 30)
         
         self.walker = other_actors[1]
 
